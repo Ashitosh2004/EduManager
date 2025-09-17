@@ -30,7 +30,8 @@ import {
   Search,
   MoreVertical,
   Edit,
-  Trash2
+  Trash2,
+  Users
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 

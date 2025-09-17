@@ -286,7 +286,7 @@ class ExportService {
    * Get unique time slots from timetable entries
    */
   private getUniqueTimeSlots(entries: TimetableEntry[]): string[] {
-    const timeSlots = [...new Set(entries.map(e => e.startTime))];
+    const timeSlots = Array.from(new Set(entries.map(e => e.startTime)));
     return timeSlots.sort((a, b) => {
       const timeA = new Date(`1970-01-01T${a}:00`);
       const timeB = new Date(`1970-01-01T${b}:00`);
