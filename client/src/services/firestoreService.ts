@@ -6,6 +6,7 @@ import {
   addDoc, 
   updateDoc, 
   deleteDoc, 
+  setDoc,
   query, 
   where, 
   orderBy, 
@@ -87,6 +88,16 @@ class FirestoreService {
       return docRef.id;
     } catch (error) {
       console.error('Error creating user:', error);
+      throw error;
+    }
+  }
+
+  async createUserWithId(id: string, user: Omit<User, 'id'>): Promise<void> {
+    try {
+      const docRef = doc(db, 'users', id);
+      await setDoc(docRef, user, { merge: true });
+    } catch (error) {
+      console.error('Error creating user with ID:', error);
       throw error;
     }
   }

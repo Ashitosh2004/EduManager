@@ -38,8 +38,47 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       try {
         if (firebaseUser) {
           // Get user data from Firestore
-          const userData = await firestoreService.getUser(firebaseUser.uid);
+          let userData = await firestoreService.getUser(firebaseUser.uid);
+          
+          if (!userData) {
+            // User doesn't exist in Firestore, create them
+            console.log('User not found in Firestore, creating new user record...');
+            
+            // Get selected institute from localStorage or default to first available institute
+            const savedInstituteId = localStorage.getItem('selectedInstituteId');
+            let instituteId = savedInstituteId;
+            
+            if (!instituteId) {
+              // If no saved institute, get the first available institute
+              const institutes = await firestoreService.getInstitutes();
+              if (institutes.length > 0) {
+                instituteId = institutes[0].id;
+                localStorage.setItem('selectedInstituteId', instituteId);
+              }
+            }
+            
+            if (instituteId) {
+              // Create new user record in Firestore
+              const newUser = {
+                email: firebaseUser.email || '',
+                name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Faculty Member',
+                role: 'faculty' as const,
+                instituteId: instituteId,
+                lastLoginAt: new Date(),
+              };
+              
+              // Use the Firebase UID as the Firestore document ID
+              await firestoreService.createUserWithId(firebaseUser.uid, newUser);
+              userData = { id: firebaseUser.uid, ...newUser };
+              
+              console.log('New user created successfully');
+            }
+          }
+          
           if (userData) {
+            // Update last login time
+            await firestoreService.updateUser(userData.id, { lastLoginAt: new Date() });
+            
             // Get institute data
             const instituteData = await firestoreService.getInstitute(userData.instituteId);
             setAuthState({
@@ -53,7 +92,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               user: null,
               institute: null,
               loading: false,
-              error: 'User data not found',
+              error: 'Unable to create or find user data',
             });
           }
         } else {
