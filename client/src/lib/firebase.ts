@@ -1,14 +1,12 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult, signInWithEmailAndPassword, signOut, User } from "firebase/auth";
 import { getFirestore, connectFirestoreEmulator } from "firebase/firestore";
-import { getMessaging, getToken, onMessage } from "firebase/messaging";
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: `${import.meta.env.VITE_FIREBASE_PROJECT_ID}.firebaseapp.com`,
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
   storageBucket: `${import.meta.env.VITE_FIREBASE_PROJECT_ID}.firebasestorage.app`,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
@@ -20,9 +18,6 @@ export const auth = getAuth(app);
 
 // Initialize Firestore
 export const db = getFirestore(app);
-
-// Initialize Firebase Cloud Messaging
-export const messaging = getMessaging(app);
 
 // Google Auth Provider
 const googleProvider = new GoogleAuthProvider();
@@ -47,32 +42,6 @@ export const signOutUser = () => {
   return signOut(auth);
 };
 
-// FCM functions
-export const requestNotificationPermission = async () => {
-  try {
-    const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
-    
-    const permission = await Notification.requestPermission();
-    if (permission === 'granted') {
-      const token = await getToken(messaging, {
-        vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY,
-        serviceWorkerRegistration: registration
-      });
-      return token;
-    }
-    return null;
-  } catch (error) {
-    console.error('Error getting notification permission:', error);
-    return null;
-  }
-};
-
-export const onMessageListener = () =>
-  new Promise((resolve) => {
-    onMessage(messaging, (payload) => {
-      resolve(payload);
-    });
-  });
 
 // Domain validation function
 export const validateEmailDomain = (email: string, instituteDomain: string): boolean => {
