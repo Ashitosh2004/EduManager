@@ -119,36 +119,33 @@ class FirestoreService {
     try {
       const q = query(
         collection(db, 'faculty'),
-        where('instituteId', '==', instituteId),
-        orderBy('name')
+        where('instituteId', '==', instituteId)
       );
       const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map(doc => ({
+      const faculty = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       })) as Faculty[];
+      
+      // Sort in memory instead of using Firestore orderBy
+      return faculty.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
     } catch (error) {
       console.error('Error getting faculty:', error);
-      throw error;
+      // Return empty array to prevent crashes
+      return [];
     }
   }
 
   async getFacultyByDepartment(instituteId: string, department: string): Promise<Faculty[]> {
     try {
-      const q = query(
-        collection(db, 'faculty'),
-        where('instituteId', '==', instituteId),
-        where('department', '==', department),
-        orderBy('name')
-      );
-      const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Faculty[];
+      // Get all faculty for institute first
+      const allFaculty = await this.getFacultyByInstitute(instituteId);
+      
+      // Filter by department in memory
+      return allFaculty.filter(faculty => faculty.department === department);
     } catch (error) {
       console.error('Error getting faculty by department:', error);
-      throw error;
+      return [];
     }
   }
 
@@ -187,21 +184,24 @@ class FirestoreService {
   // Student operations
   async getStudentsByClass(instituteId: string, department: string, className: string): Promise<Student[]> {
     try {
+      // Simple query without composite indexes
       const q = query(
         collection(db, 'students'),
-        where('instituteId', '==', instituteId),
-        where('department', '==', department),
-        where('class', '==', className),
-        orderBy('rollNumber')
+        where('instituteId', '==', instituteId)
       );
       const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map(doc => ({
+      const students = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       })) as Student[];
+      
+      // Filter and sort in memory
+      return students
+        .filter(student => student.department === department && student.class === className)
+        .sort((a, b) => (a.rollNumber || '').localeCompare(b.rollNumber || ''));
     } catch (error) {
       console.error('Error getting students by class:', error);
-      throw error;
+      return [];
     }
   }
 
@@ -238,22 +238,36 @@ class FirestoreService {
   }
 
   // Course operations
-  async getCoursesByDepartment(instituteId: string, department: string): Promise<Course[]> {
+  async getCoursesByInstitute(instituteId: string): Promise<Course[]> {
     try {
       const q = query(
         collection(db, 'courses'),
-        where('instituteId', '==', instituteId),
-        where('department', '==', department),
-        orderBy('name')
+        where('instituteId', '==', instituteId)
       );
       const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map(doc => ({
+      const courses = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       })) as Course[];
+      
+      // Sort in memory instead of using Firestore orderBy
+      return courses.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    } catch (error) {
+      console.error('Error getting courses:', error);
+      return [];
+    }
+  }
+
+  async getCoursesByDepartment(instituteId: string, department: string): Promise<Course[]> {
+    try {
+      // Get all courses for institute first
+      const allCourses = await this.getCoursesByInstitute(instituteId);
+      
+      // Filter by department in memory
+      return allCourses.filter((course: Course) => course.department === department);
     } catch (error) {
       console.error('Error getting courses by department:', error);
-      throw error;
+      return [];
     }
   }
 
@@ -294,17 +308,24 @@ class FirestoreService {
     try {
       const q = query(
         collection(db, 'timetables'),
-        where('instituteId', '==', instituteId),
-        orderBy('generatedAt', 'desc')
+        where('instituteId', '==', instituteId)
       );
       const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Timetable[];
+      const timetables = querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          generatedAt: data.generatedAt?.toDate() || new Date(),
+          createdAt: data.createdAt?.toDate() || new Date()
+        } as unknown as Timetable;
+      });
+      
+      // Sort in memory instead of using Firestore orderBy
+      return timetables.sort((a, b) => b.generatedAt.getTime() - a.generatedAt.getTime());
     } catch (error) {
       console.error('Error getting timetables:', error);
-      throw error;
+      return [];
     }
   }
 
