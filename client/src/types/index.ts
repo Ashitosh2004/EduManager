@@ -130,6 +130,29 @@ export interface AuthState {
   error: string | null;
 }
 
+export interface Activity {
+  id: string;
+  title: string;
+  type: 'student' | 'faculty' | 'course' | 'timetable' | 'general';
+  icon: string;
+  timestamp: Date;
+  instituteId: string;
+  createdAt: Date;
+}
+
+export interface Event {
+  id: string;
+  title: string;
+  description: string;
+  date: Date;
+  startTime: string;
+  endTime: string;
+  location?: string;
+  type: 'meeting' | 'exam' | 'holiday' | 'class' | 'general';
+  instituteId: string;
+  createdAt: Date;
+}
+
 export interface FirestoreCollections {
   institutes: Institute;
   faculty: Faculty;
@@ -137,4 +160,6 @@ export interface FirestoreCollections {
   courses: Course;
   timetables: Timetable;
   users: User;
+  activities: Activity;
+  events: Event;
 }

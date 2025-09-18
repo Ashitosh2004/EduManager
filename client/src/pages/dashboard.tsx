@@ -10,10 +10,9 @@ import {
   BookOpen, 
   Calendar, 
   TrendingUp,
-  ArrowRight,
-  Plus,
-  Clock
+  ArrowRight
 } from 'lucide-react';
+import { RecentActivity } from '@/components/dashboard/RecentActivity';
 
 interface DashboardStats {
   students: number;
@@ -102,47 +101,6 @@ const Dashboard: React.FC = () => {
     }
   ];
 
-  const recentActivities = [
-    {
-      icon: Plus,
-      iconBg: 'bg-primary/10',
-      iconColor: 'text-primary',
-      title: 'Added 15 new students to CSE-A batch',
-      time: '2 hours ago'
-    },
-    {
-      icon: Calendar,
-      iconBg: 'bg-accent/20',
-      iconColor: 'text-accent-foreground',
-      title: 'Generated timetable for Fall 2024',
-      time: '5 hours ago'
-    },
-    {
-      icon: BookOpen,
-      iconBg: 'bg-secondary/20',
-      iconColor: 'text-secondary-foreground',
-      title: 'Course "Advanced Algorithms" updated',
-      time: '1 day ago'
-    }
-  ];
-
-  const upcomingEvents = [
-    {
-      date: { month: 'Dec', day: '15' },
-      title: 'Faculty Meeting',
-      subtitle: '2:00 PM - Conference Room A'
-    },
-    {
-      date: { month: 'Dec', day: '18' },
-      title: 'Semester Exam Schedule',
-      subtitle: '9:00 AM - All Departments'
-    },
-    {
-      date: { month: 'Dec', day: '20' },
-      title: 'Winter Break Begins',
-      subtitle: 'All Day - Campus Wide'
-    }
-  ];
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -262,66 +220,7 @@ const Dashboard: React.FC = () => {
       </div>
 
       {/* Recent Activity and Upcoming Schedule */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Activity */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Recent Activity</CardTitle>
-              <Button variant="ghost" size="sm" data-testid="button-view-all-activity">
-                View All
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {recentActivities.map((activity, index) => {
-                const Icon = activity.icon;
-                return (
-                  <div key={index} className="flex items-start space-x-3">
-                    <div className={`w-8 h-8 ${activity.iconBg} rounded-full flex items-center justify-center flex-shrink-0`}>
-                      <Icon className={`h-4 w-4 ${activity.iconColor}`} />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm text-foreground">{activity.title}</p>
-                      <p className="text-xs text-muted-foreground">{activity.time}</p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Upcoming Schedule */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Upcoming Schedule</CardTitle>
-              <Button variant="ghost" size="sm" data-testid="button-view-calendar">
-                View Calendar
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {upcomingEvents.map((event, index) => (
-                <div key={index} className="flex items-center space-x-4">
-                  <div className="text-center flex-shrink-0">
-                    <div className="text-sm font-medium text-muted-foreground">{event.date.month}</div>
-                    <div className="text-lg font-bold text-foreground">{event.date.day}</div>
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-foreground">{event.title}</p>
-                    <p className="text-xs text-muted-foreground">{event.subtitle}</p>
-                  </div>
-                  <ArrowRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <RecentActivity />
     </div>
   );
 };

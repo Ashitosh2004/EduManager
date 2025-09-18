@@ -20,6 +20,8 @@ import {
   Course, 
   Timetable, 
   User,
+  Activity,
+  Event as EventType,
   FirestoreCollections 
 } from '@/types';
 
@@ -348,6 +350,119 @@ class FirestoreService {
       await updateDoc(docRef, updates);
     } catch (error) {
       console.error('Error updating timetable:', error);
+      throw error;
+    }
+  }
+
+  // Activity operations
+  async getRecentActivities(instituteId: string, limitCount: number = 10): Promise<Activity[]> {
+    try {
+      // Simple query without orderBy to avoid composite index requirement
+      const q = query(
+        collection(db, 'activities'),
+        where('instituteId', '==', instituteId),
+        limit(limitCount)
+      );
+      const querySnapshot = await getDocs(q);
+      const activities = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        timestamp: doc.data().timestamp?.toDate() || new Date(),
+        createdAt: doc.data().createdAt?.toDate() || new Date()
+      })) as Activity[];
+      
+      // Sort in memory instead of using Firestore orderBy
+      return activities.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+    } catch (error) {
+      console.error('Error getting recent activities:', error);
+      // Return empty array instead of throwing to prevent UI crashes
+      return [];
+    }
+  }
+
+  async createActivity(activity: Omit<Activity, 'id'>): Promise<string> {
+    try {
+      const docRef = await addDoc(collection(db, 'activities'), {
+        ...activity,
+        timestamp: activity.timestamp || new Date(),
+        createdAt: new Date()
+      });
+      return docRef.id;
+    } catch (error) {
+      console.error('Error creating activity:', error);
+      throw error;
+    }
+  }
+
+  async deleteActivity(id: string): Promise<void> {
+    try {
+      await deleteDoc(doc(db, 'activities', id));
+    } catch (error) {
+      console.error('Error deleting activity:', error);
+      throw error;
+    }
+  }
+
+  // Event operations
+  async getUpcomingEvents(instituteId: string, limitCount: number = 10): Promise<EventType[]> {
+    try {
+      // Simple query without complex where clauses to avoid composite index requirement
+      const q = query(
+        collection(db, 'events'),
+        where('instituteId', '==', instituteId),
+        limit(50) // Get more docs to filter in memory
+      );
+      const querySnapshot = await getDocs(q);
+      const events = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        date: doc.data().date?.toDate() || new Date(),
+        createdAt: doc.data().createdAt?.toDate() || new Date()
+      })) as EventType[];
+      
+      // Filter and sort in memory instead of using complex Firestore queries
+      const now = new Date();
+      now.setHours(0, 0, 0, 0); // Start of today
+      
+      return events
+        .filter(event => event.date >= now)
+        .sort((a, b) => a.date.getTime() - b.date.getTime())
+        .slice(0, limitCount);
+    } catch (error) {
+      console.error('Error getting upcoming events:', error);
+      // Return empty array instead of throwing to prevent UI crashes
+      return [];
+    }
+  }
+
+  async createEvent(event: Omit<EventType, 'id'>): Promise<string> {
+    try {
+      const docRef = await addDoc(collection(db, 'events'), {
+        ...event,
+        createdAt: new Date()
+      });
+      return docRef.id;
+    } catch (error) {
+      console.error('Error creating event:', error);
+      throw error;
+    }
+  }
+
+  async updateEvent(id: string, updates: Partial<EventType>): Promise<void> {
+    try {
+      const docRef = doc(db, 'events', id);
+      await updateDoc(docRef, updates);
+    } catch (error) {
+      console.error('Error updating event:', error);
+      throw error;
+    }
+  }
+
+  async deleteEvent(id: string): Promise<void> {
+    try {
+      await deleteDoc(doc(db, 'events', id));
+    } catch (error) {
+      console.error('Error deleting event:', error);
       throw error;
     }
   }
