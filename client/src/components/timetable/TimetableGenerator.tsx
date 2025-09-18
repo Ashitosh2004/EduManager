@@ -10,10 +10,12 @@ import {
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
+import { firestoreService } from '@/services/firestoreService';
 import { timetableService } from '@/services/timetableService';
 import { exportService } from '@/services/exportService';
-import { TimetableEntry, Timetable, Conflict } from '@/types';
+import { TimetableEntry, Timetable, Conflict, Faculty, Course, Student } from '@/types';
 import { 
   Calendar,
   Download,
@@ -22,7 +24,8 @@ import {
   CheckCircle,
   Loader2,
   Sparkles,
-  Clock
+  Clock,
+  Settings
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -34,24 +37,90 @@ export const TimetableGenerator: React.FC<TimetableGeneratorProps> = ({ onBack }
   const { institute } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [loadingData, setLoadingData] = useState(true);
   const [generatedTimetable, setGeneratedTimetable] = useState<Timetable | null>(null);
   const [conflicts, setConflicts] = useState<Conflict[]>([]);
+  
+  // Dynamic data from Firebase
+  const [faculty, setFaculty] = useState<Faculty[]>([]);
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [departments, setDepartments] = useState<string[]>([]);
+  const [classes, setClasses] = useState<Record<string, string[]>>({});
+  
   const [formData, setFormData] = useState({
     department: '',
     class: '',
     semester: 'Fall 2024'
   });
 
-  const departments = [
-    { value: 'cse', label: 'Computer Science' },
-    { value: 'ece', label: 'Electronics & Communication' },
-    { value: 'mech', label: 'Mechanical Engineering' }
-  ];
+  // User-defined timetable parameters
+  const [timetableParams, setTimetableParams] = useState({
+    totalHours: 8,
+    startTime: '09:00',
+    endTime: '17:00',
+    shortBreakDuration: 10,
+    lunchBreakDuration: 60,
+    lunchBreakStart: '12:00',
+    sessionDuration: 60
+  });
 
-  const classes = {
-    cse: ['CSE-A (3rd Year)', 'CSE-B (3rd Year)', 'CSE-A (2nd Year)', 'CSE-B (2nd Year)'],
-    ece: ['ECE-A (3rd Year)', 'ECE-B (3rd Year)', 'ECE-A (2nd Year)', 'ECE-B (2nd Year)'],
-    mech: ['MECH-A (3rd Year)', 'MECH-B (3rd Year)', 'MECH-A (2nd Year)', 'MECH-B (2nd Year)']
+  // Load dynamic data from Firebase
+  useEffect(() => {
+    if (institute) {
+      loadDynamicData();
+    }
+  }, [institute]);
+
+  const loadDynamicData = async () => {
+    if (!institute) return;
+
+    try {
+      setLoadingData(true);
+      
+      // Load faculty and courses from Firebase
+      const [facultyData, coursesData] = await Promise.all([
+        firestoreService.getFacultyByInstitute(institute.id),
+        firestoreService.getCoursesByInstitute(institute.id)
+      ]);
+
+      setFaculty(facultyData);
+      setCourses(coursesData);
+
+      // Extract unique departments from faculty and courses
+      const deptSet = new Set([
+        ...facultyData.map(f => f.department),
+        ...coursesData.map(c => c.department)
+      ]);
+      const uniqueDepts = Array.from(deptSet).filter(Boolean);
+      setDepartments(uniqueDepts);
+
+      // Build dynamic classes mapping based on available data
+      const classesMap: Record<string, string[]> = {};
+      uniqueDepts.forEach(dept => {
+        // Generate class options for each department (you can modify this logic)
+        classesMap[dept] = [
+          `${dept.toUpperCase()}-A (1st Year)`,
+          `${dept.toUpperCase()}-B (1st Year)`,
+          `${dept.toUpperCase()}-A (2nd Year)`,
+          `${dept.toUpperCase()}-B (2nd Year)`,
+          `${dept.toUpperCase()}-A (3rd Year)`,
+          `${dept.toUpperCase()}-B (3rd Year)`,
+          `${dept.toUpperCase()}-A (4th Year)`,
+          `${dept.toUpperCase()}-B (4th Year)`
+        ];
+      });
+      setClasses(classesMap);
+
+    } catch (error) {
+      console.error('Error loading dynamic data:', error);
+      toast({
+        title: "Loading Error",
+        description: "Failed to load faculty and course data.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingData(false);
+    }
   };
 
   const handleGenerateTimetable = async () => {
@@ -67,24 +136,33 @@ export const TimetableGenerator: React.FC<TimetableGeneratorProps> = ({ onBack }
     try {
       setLoading(true);
       
-      // Simulate timetable generation with sample data
-      const sampleTimetable: Timetable = {
+      // Generate timetable with dynamic data and user parameters
+      const dynamicTimetable: Timetable = {
         id: `tt-${Date.now()}`,
         class: formData.class,
         department: formData.department,
         semester: formData.semester,
         academicYear: '2024-2025',
-        entries: generateSampleEntries(),
+        entries: generateDynamicEntries(),
         conflicts: [],
         generatedAt: new Date(),
         instituteId: institute.id
       };
 
-      // Validate for conflicts
-      const detectedConflicts = await timetableService.validateTimetable(sampleTimetable.entries);
-      sampleTimetable.conflicts = detectedConflicts;
+      // Validate for conflicts using historical data
+      const detectedConflicts = await validateTimetableWithHistory(dynamicTimetable.entries);
+      dynamicTimetable.conflicts = detectedConflicts;
       
-      setGeneratedTimetable(sampleTimetable);
+      // Save generated timetable to Firebase for historical analysis
+      try {
+        const timetableId = await firestoreService.saveTimetable(dynamicTimetable);
+        dynamicTimetable.id = timetableId;
+      } catch (saveError) {
+        console.warn('Failed to save timetable to Firebase:', saveError);
+        // Continue without saving - don't block the generation
+      }
+      
+      setGeneratedTimetable(dynamicTimetable);
       setConflicts(detectedConflicts);
       
       toast({
@@ -105,53 +183,161 @@ export const TimetableGenerator: React.FC<TimetableGeneratorProps> = ({ onBack }
     }
   };
 
-  const generateSampleEntries = (): TimetableEntry[] => {
-    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-    const timeSlots = [
-      { start: '09:00', end: '10:00', label: '09:00-10:00' },
-      { start: '10:00', end: '11:00', label: '10:00-11:00' },
-      { start: '11:30', end: '12:30', label: '11:30-12:30' },
-      { start: '14:00', end: '15:00', label: '14:00-15:00' },
-      { start: '15:00', end: '16:00', label: '15:00-16:00' }
-    ];
+  // Generate dynamic time slots based on user parameters
+  const generateTimeSlots = () => {
+    const slots = [];
+    const startMinutes = parseTimeToMinutes(timetableParams.startTime);
+    const endMinutes = parseTimeToMinutes(timetableParams.endTime);
+    const sessionDuration = timetableParams.sessionDuration;
+    const shortBreak = timetableParams.shortBreakDuration;
+    const lunchStart = parseTimeToMinutes(timetableParams.lunchBreakStart);
+    const lunchDuration = timetableParams.lunchBreakDuration;
 
-    const subjects = [
-      { name: 'Data Structures', faculty: 'Dr. Johnson', room: 'Room 301' },
-      { name: 'Algorithms', faculty: 'Prof. Smith', room: 'Room 205' },
-      { name: 'Database Systems', faculty: 'Dr. Williams', room: 'Lab 1' },
-      { name: 'Operating Systems', faculty: 'Prof. Davis', room: 'Room 401' },
-      { name: 'Software Engineering', faculty: 'Dr. Brown', room: 'Room 302' },
-      { name: 'Computer Networks', faculty: 'Prof. Wilson', room: 'Lab 2' },
-      { name: 'Machine Learning', faculty: 'Dr. Anderson', room: 'Room 501' },
-      { name: 'Web Technologies', faculty: 'Prof. Taylor', room: 'Lab 3' }
-    ];
+    let currentTime = startMinutes;
+    let slotIndex = 0;
+
+    while (currentTime + sessionDuration <= endMinutes) {
+      const slotStart = formatMinutesToTime(currentTime);
+      const slotEnd = formatMinutesToTime(currentTime + sessionDuration);
+      
+      // Check if this slot conflicts with lunch break
+      const isLunchTime = currentTime < lunchStart + lunchDuration && currentTime + sessionDuration > lunchStart;
+      
+      if (!isLunchTime) {
+        slots.push({
+          index: slotIndex++,
+          start: slotStart,
+          end: slotEnd,
+          label: `${slotStart}-${slotEnd}`
+        });
+      }
+
+      currentTime += sessionDuration;
+      
+      // Add short break, except if we're about to hit lunch
+      if (currentTime < lunchStart || currentTime >= lunchStart + lunchDuration) {
+        currentTime += shortBreak;
+      }
+      
+      // Skip lunch break
+      if (currentTime < lunchStart + lunchDuration && currentTime + sessionDuration > lunchStart) {
+        currentTime = lunchStart + lunchDuration;
+      }
+    }
+
+    return slots;
+  };
+
+  const parseTimeToMinutes = (timeStr: string): number => {
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    return hours * 60 + minutes;
+  };
+
+  const formatMinutesToTime = (minutes: number): string => {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+  };
+
+  const generateDynamicEntries = (): TimetableEntry[] => {
+    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+    const timeSlots = generateTimeSlots();
+    
+    // Get courses for selected department
+    const departmentCourses = courses.filter(course => course.department === formData.department);
+    const departmentFaculty = faculty.filter(f => f.department === formData.department);
+    
+    if (departmentCourses.length === 0 || departmentFaculty.length === 0) {
+      toast({
+        title: "No Data Available",
+        description: `No courses or faculty found for ${formData.department} department. Please add faculty and courses first.`,
+        variant: "destructive",
+      });
+      return [];
+    }
 
     const entries: TimetableEntry[] = [];
-    let subjectIndex = 0;
+    let courseIndex = 0;
 
     days.forEach((day, dayIndex) => {
       timeSlots.forEach((slot, slotIndex) => {
-        if (Math.random() > 0.2) { // 80% chance of having a class
-          const subject = subjects[subjectIndex % subjects.length];
+        // Generate classes with some randomness but ensure good coverage
+        if (Math.random() > 0.25) { // 75% chance of having a class
+          const course = departmentCourses[courseIndex % departmentCourses.length];
+          const assignedFaculty = departmentFaculty.find(f => f.id === course.facultyId) || 
+                                 departmentFaculty[Math.floor(Math.random() * departmentFaculty.length)];
+          
           entries.push({
             id: `entry-${dayIndex}-${slotIndex}`,
-            subjectId: `subject-${subjectIndex}`,
-            subjectName: subject.name,
-            facultyId: `faculty-${subjectIndex}`,
-            facultyName: subject.faculty,
+            subjectId: course.id,
+            subjectName: course.name,
+            facultyId: assignedFaculty.id,
+            facultyName: assignedFaculty.name,
             class: formData.class,
-            room: subject.room,
+            room: `Room ${Math.floor(Math.random() * 500) + 100}`, // Generate room numbers dynamically
             day,
             timeSlot: `slot-${slotIndex}`,
             startTime: slot.start,
             endTime: slot.end
           });
-          subjectIndex++;
+          courseIndex++;
         }
       });
     });
 
     return entries;
+  };
+
+  // Validate timetable against historical data for conflicts
+  const validateTimetableWithHistory = async (entries: TimetableEntry[]): Promise<Conflict[]> => {
+    if (!institute) return [];
+
+    try {
+      // Get historical timetables for conflict analysis
+      const historicalTimetables = await firestoreService.getTimetablesByInstitute(institute.id);
+      const conflicts: Conflict[] = [];
+
+      entries.forEach(entry => {
+        // Check for faculty conflicts across all historical timetables
+        historicalTimetables.forEach(historicalTT => {
+          historicalTT.entries?.forEach(historicalEntry => {
+            if (historicalEntry.facultyId === entry.facultyId &&
+                historicalEntry.day === entry.day &&
+                historicalEntry.startTime === entry.startTime &&
+                historicalEntry.class !== entry.class) {
+              conflicts.push({
+                type: 'teacher',
+                severity: 'high',
+                description: `Faculty ${entry.facultyName} is already scheduled at ${entry.startTime} on ${entry.day} for ${historicalEntry.class}`,
+                resolved: false
+              });
+            }
+          });
+        });
+
+        // Check for room conflicts within the same timetable
+        const roomConflicts = entries.filter(otherEntry => 
+          otherEntry.id !== entry.id &&
+          otherEntry.room === entry.room &&
+          otherEntry.day === entry.day &&
+          otherEntry.startTime === entry.startTime
+        );
+
+        roomConflicts.forEach(conflictEntry => {
+          conflicts.push({
+            type: 'room',
+            severity: 'medium',
+            description: `Room ${entry.room} is double-booked at ${entry.startTime} on ${entry.day}`,
+            resolved: false
+          });
+        });
+      });
+
+      return conflicts;
+    } catch (error) {
+      console.error('Error validating timetable with history:', error);
+      return [];
+    }
   };
 
   const handleExportPDF = async () => {
@@ -232,10 +418,99 @@ export const TimetableGenerator: React.FC<TimetableGeneratorProps> = ({ onBack }
                 <span>Configure Timetable</span>
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="department">Department</Label>
-                <Select 
+            <CardContent className="space-y-6">
+              {/* Timetable Parameters */}
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2 text-sm font-medium text-muted-foreground">
+                  <Settings className="h-4 w-4" />
+                  <span>Timetable Parameters</span>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label htmlFor="start-time" className="text-xs">Start Time</Label>
+                    <Input
+                      id="start-time"
+                      type="time"
+                      value={timetableParams.startTime}
+                      onChange={(e) => setTimetableParams(prev => ({ ...prev, startTime: e.target.value }))}
+                      className="h-8 text-xs"
+                      data-testid="input-start-time"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="end-time" className="text-xs">End Time</Label>
+                    <Input
+                      id="end-time"
+                      type="time"
+                      value={timetableParams.endTime}
+                      onChange={(e) => setTimetableParams(prev => ({ ...prev, endTime: e.target.value }))}
+                      className="h-8 text-xs"
+                      data-testid="input-end-time"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label htmlFor="session-duration" className="text-xs">Session (min)</Label>
+                    <Input
+                      id="session-duration"
+                      type="number"
+                      value={timetableParams.sessionDuration}
+                      onChange={(e) => setTimetableParams(prev => ({ ...prev, sessionDuration: parseInt(e.target.value) || 60 }))}
+                      className="h-8 text-xs"
+                      data-testid="input-session-duration"
+                      min="30"
+                      max="120"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="short-break" className="text-xs">Short Break (min)</Label>
+                    <Input
+                      id="short-break"
+                      type="number"
+                      value={timetableParams.shortBreakDuration}
+                      onChange={(e) => setTimetableParams(prev => ({ ...prev, shortBreakDuration: parseInt(e.target.value) || 10 }))}
+                      className="h-8 text-xs"
+                      data-testid="input-short-break"
+                      min="5"
+                      max="30"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="lunch-break" className="text-xs">Lunch Break Start</Label>
+                  <Input
+                    id="lunch-break"
+                    type="time"
+                    value={timetableParams.lunchBreakStart}
+                    onChange={(e) => setTimetableParams(prev => ({ ...prev, lunchBreakStart: e.target.value }))}
+                    className="h-8 text-xs"
+                    data-testid="input-lunch-start"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="lunch-duration" className="text-xs">Lunch Duration (min)</Label>
+                  <Input
+                    id="lunch-duration"
+                    type="number"
+                    value={timetableParams.lunchBreakDuration}
+                    onChange={(e) => setTimetableParams(prev => ({ ...prev, lunchBreakDuration: parseInt(e.target.value) || 60 }))}
+                    className="h-8 text-xs"
+                    data-testid="input-lunch-duration"
+                    min="30"
+                    max="120"
+                  />
+                </div>
+              </div>
+
+              <div className="border-t border-border pt-4 space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="department">Department</Label>
+                  <Select 
                   value={formData.department} 
                   onValueChange={(value) => setFormData(prev => ({ ...prev, department: value, class: '' }))}
                 >
@@ -244,8 +519,8 @@ export const TimetableGenerator: React.FC<TimetableGeneratorProps> = ({ onBack }
                   </SelectTrigger>
                   <SelectContent>
                     {departments.map(dept => (
-                      <SelectItem key={dept.value} value={dept.value}>
-                        {dept.label}
+                      <SelectItem key={dept} value={dept}>
+                        {dept.charAt(0).toUpperCase() + dept.slice(1)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -307,6 +582,7 @@ export const TimetableGenerator: React.FC<TimetableGeneratorProps> = ({ onBack }
                   </>
                 )}
               </Button>
+              </div>
               
               {/* Conflict Detection Status */}
               <div className="pt-4 border-t border-border">
@@ -377,12 +653,12 @@ export const TimetableGenerator: React.FC<TimetableGeneratorProps> = ({ onBack }
                       </tr>
                     </thead>
                     <tbody>
-                      {['09:00-10:00', '10:00-11:00', '11:30-12:30', '14:00-15:00', '15:00-16:00'].map((timeSlot, index) => (
+                      {generateTimeSlots().map((slot, index) => (
                         <tr key={index} className="border-b border-border/50">
-                          <td className="py-3 px-4 font-medium text-muted-foreground">{timeSlot}</td>
+                          <td className="py-3 px-4 font-medium text-muted-foreground">{slot.label}</td>
                           {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].map((day) => {
                             const entry = generatedTimetable.entries.find(e => 
-                              e.day === day && e.startTime === timeSlot.split('-')[0]
+                              e.day === day && e.startTime === slot.start
                             );
                             
                             if (!entry) {
