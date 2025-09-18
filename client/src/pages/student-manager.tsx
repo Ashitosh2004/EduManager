@@ -56,7 +56,17 @@ const StudentManager: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [departmentStats, setDepartmentStats] = useState<Record<string, number>>({});
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    rollNumber: '',
+    year: 1,
+    semester: 1,
+    phoneNumber: '',
+    parentContact: ''
+  });
 
   useEffect(() => {
     if (institute) {
@@ -126,6 +136,122 @@ const StudentManager: React.FC = () => {
       setStudents([]);
     } else if (selectedDepartment) {
       setSelectedDepartment(null);
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      email: '',
+      rollNumber: '',
+      year: 1,
+      semester: 1,
+      phoneNumber: '',
+      parentContact: ''
+    });
+    setEditingStudent(null);
+  };
+
+  const handleAddStudent = () => {
+    resetForm();
+    setShowAddModal(true);
+  };
+
+  const handleEditStudent = (student: Student) => {
+    setFormData({
+      name: student.name,
+      email: student.email,
+      rollNumber: student.rollNumber,
+      year: student.year,
+      semester: student.semester,
+      phoneNumber: student.phoneNumber || '',
+      parentContact: student.parentContact || ''
+    });
+    setEditingStudent(student);
+    setShowAddModal(true);
+  };
+
+  const handleSubmit = async () => {
+    if (!institute || !selectedDepartment || !selectedClass) return;
+
+    if (!formData.name || !formData.email || !formData.rollNumber) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill in all required fields.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setLoading(true);
+      
+      const baseStudentData = {
+        name: formData.name,
+        email: formData.email,
+        rollNumber: formData.rollNumber,
+        department: selectedDepartment,
+        class: selectedClass,
+        year: formData.year,
+        semester: formData.semester,
+        phoneNumber: formData.phoneNumber,
+        parentContact: formData.parentContact,
+        instituteId: institute.id
+      };
+
+      if (editingStudent) {
+        await firestoreService.updateStudent(editingStudent.id, baseStudentData);
+        toast({
+          title: "Success",
+          description: "Student updated successfully.",
+        });
+      } else {
+        const studentData = {
+          ...baseStudentData,
+          createdAt: new Date()
+        };
+        await firestoreService.createStudent(studentData);
+        toast({
+          title: "Success",
+          description: "Student added successfully.",
+        });
+      }
+
+      setShowAddModal(false);
+      resetForm();
+      loadStudents();
+      loadDepartmentStats();
+    } catch (error) {
+      console.error('Error saving student:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save student. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteStudent = async (studentId: string) => {
+    try {
+      setLoading(true);
+      await firestoreService.deleteStudent(studentId);
+      toast({
+        title: "Success",
+        description: "Student deleted successfully.",
+      });
+      loadStudents();
+      loadDepartmentStats();
+    } catch (error) {
+      console.error('Error deleting student:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete student. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -249,7 +375,7 @@ const StudentManager: React.FC = () => {
             </div>
           </div>
           
-          <Button onClick={() => setShowAddModal(true)} data-testid="button-add-student">
+          <Button onClick={handleAddStudent} data-testid="button-add-student">
             <Plus className="h-4 w-4 mr-2" />
             Add Student
           </Button>
@@ -312,11 +438,23 @@ const StudentManager: React.FC = () => {
                 </div>
                 
                 <div className="flex space-x-2 mt-4">
-                  <Button variant="outline" size="sm" className="flex-1">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="flex-1"
+                    onClick={() => handleEditStudent(student)}
+                    data-testid={`button-edit-student-${student.id}`}
+                  >
                     <Edit className="h-3 w-3 mr-1" />
                     Edit
                   </Button>
-                  <Button variant="outline" size="sm" className="flex-1 text-destructive hover:bg-destructive hover:text-destructive-foreground">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="flex-1 text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                    onClick={() => handleDeleteStudent(student.id)}
+                    data-testid={`button-delete-student-${student.id}`}
+                  >
                     <Trash2 className="h-3 w-3 mr-1" />
                     Delete
                   </Button>
@@ -335,7 +473,7 @@ const StudentManager: React.FC = () => {
             <p className="text-muted-foreground mb-4">
               {searchTerm ? 'No students match your search criteria.' : 'Get started by adding your first student.'}
             </p>
-            <Button onClick={() => setShowAddModal(true)}>
+            <Button onClick={handleAddStudent}>
               <Plus className="h-4 w-4 mr-2" />
               Add Student
             </Button>
@@ -347,30 +485,54 @@ const StudentManager: React.FC = () => {
       <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add New Student</DialogTitle>
+            <DialogTitle>
+              {editingStudent ? 'Edit Student' : 'Add New Student'}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="student-name">Full Name</Label>
-                <Input id="student-name" placeholder="John Doe" />
+                <Label htmlFor="student-name">Full Name *</Label>
+                <Input 
+                  id="student-name" 
+                  placeholder="John Doe"
+                  value={formData.name}
+                  onChange={(e) => setFormData({...formData, name: e.target.value})}
+                  data-testid="input-student-name"
+                />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="roll-number">Roll Number</Label>
-                <Input id="roll-number" placeholder="CSE2024001" />
+                <Label htmlFor="roll-number">Roll Number *</Label>
+                <Input 
+                  id="roll-number" 
+                  placeholder="CSE2024001"
+                  value={formData.rollNumber}
+                  onChange={(e) => setFormData({...formData, rollNumber: e.target.value})}
+                  data-testid="input-roll-number"
+                />
               </div>
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="student-email">Email Address</Label>
-              <Input id="student-email" type="email" placeholder="john.doe@student.edu" />
+              <Label htmlFor="student-email">Email Address *</Label>
+              <Input 
+                id="student-email" 
+                type="email" 
+                placeholder="john.doe@student.edu"
+                value={formData.email}
+                onChange={(e) => setFormData({...formData, email: e.target.value})}
+                data-testid="input-student-email"
+              />
             </div>
             
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="year">Year</Label>
-                <Select>
-                  <SelectTrigger>
+                <Select 
+                  value={formData.year.toString()} 
+                  onValueChange={(value) => setFormData({...formData, year: parseInt(value)})}
+                >
+                  <SelectTrigger data-testid="select-year">
                     <SelectValue placeholder="Select year" />
                   </SelectTrigger>
                   <SelectContent>
@@ -383,8 +545,11 @@ const StudentManager: React.FC = () => {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="semester">Semester</Label>
-                <Select>
-                  <SelectTrigger>
+                <Select 
+                  value={formData.semester.toString()} 
+                  onValueChange={(value) => setFormData({...formData, semester: parseInt(value)})}
+                >
+                  <SelectTrigger data-testid="select-semester">
                     <SelectValue placeholder="Select semester" />
                   </SelectTrigger>
                   <SelectContent>
@@ -395,16 +560,46 @@ const StudentManager: React.FC = () => {
               </div>
             </div>
             
-            <div className="space-y-2">
-              <Label htmlFor="phone">Phone Number</Label>
-              <Input id="phone" placeholder="+1 (555) 123-4567" />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="phone">Phone Number</Label>
+                <Input 
+                  id="phone" 
+                  placeholder="+1 (555) 123-4567"
+                  value={formData.phoneNumber}
+                  onChange={(e) => setFormData({...formData, phoneNumber: e.target.value})}
+                  data-testid="input-phone"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="parent-contact">Parent Contact</Label>
+                <Input 
+                  id="parent-contact" 
+                  placeholder="+1 (555) 987-6543"
+                  value={formData.parentContact}
+                  onChange={(e) => setFormData({...formData, parentContact: e.target.value})}
+                  data-testid="input-parent-contact"
+                />
+              </div>
             </div>
             
             <div className="flex space-x-2 pt-4">
-              <Button variant="outline" onClick={() => setShowAddModal(false)} className="flex-1">
+              <Button 
+                variant="outline" 
+                onClick={() => setShowAddModal(false)} 
+                className="flex-1"
+                data-testid="button-cancel-student"
+              >
                 Cancel
               </Button>
-              <Button className="flex-1">Add Student</Button>
+              <Button 
+                onClick={handleSubmit} 
+                className="flex-1"
+                disabled={loading}
+                data-testid="button-submit-student"
+              >
+                {loading ? 'Saving...' : editingStudent ? 'Update Student' : 'Add Student'}
+              </Button>
             </div>
           </div>
         </DialogContent>
