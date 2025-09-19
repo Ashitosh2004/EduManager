@@ -32,6 +32,7 @@ import {
   BookOpen
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { TimetableGrid } from './TimetableGrid';
 
 interface TimetableGeneratorProps {
   onBack?: () => void;
@@ -408,7 +409,7 @@ export const TimetableGenerator: React.FC<TimetableGeneratorProps> = ({ onBack }
         class: formData.class,
         department: formData.department,
         semester: formData.semester,
-        academicYear: '2024-2025',
+        academicYear: '2025-26',
         entries: sessions.length > 0 ? generateEntriesFromSessions() : generateDynamicEntries(),
         sessions,
         config,
@@ -454,47 +455,16 @@ export const TimetableGenerator: React.FC<TimetableGeneratorProps> = ({ onBack }
 
   // Generate dynamic time slots based on user parameters
   const generateTimeSlots = () => {
-    const slots = [];
-    const startMinutes = parseTimeToMinutes(timetableParams.startTime);
-    const endMinutes = parseTimeToMinutes(timetableParams.endTime);
-    const sessionDuration = timetableParams.sessionDuration;
-    const shortBreak = timetableParams.shortBreakDuration;
-    const lunchStart = parseTimeToMinutes(timetableParams.lunchBreakStart);
-    const lunchDuration = timetableParams.lunchBreakDuration;
-
-    let currentTime = startMinutes;
-    let slotIndex = 0;
-
-    while (currentTime + sessionDuration <= endMinutes) {
-      const slotStart = formatMinutesToTime(currentTime);
-      const slotEnd = formatMinutesToTime(currentTime + sessionDuration);
-      
-      // Check if this slot conflicts with lunch break
-      const isLunchTime = currentTime < lunchStart + lunchDuration && currentTime + sessionDuration > lunchStart;
-      
-      if (!isLunchTime) {
-        slots.push({
-          index: slotIndex++,
-          start: slotStart,
-          end: slotEnd,
-          label: `${slotStart}-${slotEnd}`
-        });
-      }
-
-      currentTime += sessionDuration;
-      
-      // Add short break, except if we're about to hit lunch
-      if (currentTime < lunchStart || currentTime >= lunchStart + lunchDuration) {
-        currentTime += shortBreak;
-      }
-      
-      // Skip lunch break
-      if (currentTime < lunchStart + lunchDuration && currentTime + sessionDuration > lunchStart) {
-        currentTime = lunchStart + lunchDuration;
-      }
-    }
-
-    return slots;
+    // Fixed university timetable time slots to match TimetableGrid display
+    // Based on reference university format: 09:00, 10:00, 11:15, 12:15, 14:00, 15:00
+    return [
+      { index: 0, start: "09:00", end: "10:00", label: "09:00-10:00" },
+      { index: 1, start: "10:00", end: "11:00", label: "10:00-11:00" },
+      { index: 2, start: "11:15", end: "12:15", label: "11:15-12:15" },
+      { index: 3, start: "12:15", end: "13:15", label: "12:15-13:15" },
+      { index: 4, start: "14:00", end: "15:00", label: "14:00-15:00" },
+      { index: 5, start: "15:00", end: "16:00", label: "15:00-16:00" }
+    ];
   };
 
   const parseTimeToMinutes = (timeStr: string): number => {
@@ -1149,55 +1119,13 @@ export const TimetableGenerator: React.FC<TimetableGeneratorProps> = ({ onBack }
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse">
-                    <thead>
-                      <tr className="border-b border-border">
-                        <th className="text-left py-3 px-4 font-medium text-muted-foreground min-w-[100px]">Time</th>
-                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">Monday</th>
-                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">Tuesday</th>
-                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">Wednesday</th>
-                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">Thursday</th>
-                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">Friday</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {generateTimeSlots().map((slot, index) => (
-                        <tr key={index} className="border-b border-border/50">
-                          <td className="py-3 px-4 font-medium text-muted-foreground">{slot.label}</td>
-                          {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].map((day) => {
-                            const entry = generatedTimetable.entries.find(e => 
-                              e.day === day && e.startTime === slot.start
-                            );
-                            
-                            if (!entry) {
-                              return <td key={day} className="py-3 px-4 text-center text-muted-foreground">-</td>;
-                            }
-                            
-                            const colors = [
-                              'bg-blue-50 dark:bg-blue-950/30 border-l-4 border-blue-500',
-                              'bg-green-50 dark:bg-green-950/30 border-l-4 border-green-500',
-                              'bg-purple-50 dark:bg-purple-950/30 border-l-4 border-purple-500',
-                              'bg-orange-50 dark:bg-orange-950/30 border-l-4 border-orange-500',
-                              'bg-teal-50 dark:bg-teal-950/30 border-l-4 border-teal-500',
-                            ];
-                            const colorClass = colors[index % colors.length];
-                            
-                            return (
-                              <td key={day} className="py-3 px-4">
-                                <div className={`${colorClass} rounded-lg p-3`}>
-                                  <div className="font-medium text-sm text-foreground">{entry.subjectName}</div>
-                                  <div className="text-xs text-muted-foreground">{entry.facultyName}</div>
-                                  <div className="text-xs text-muted-foreground">{entry.room}</div>
-                                </div>
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <TimetableGrid 
+                  entries={generatedTimetable.entries}
+                  department={generatedTimetable.department}
+                  class={generatedTimetable.class}
+                  semester={generatedTimetable.semester}
+                  academicYear={generatedTimetable.academicYear || '2025-26'}
+                />
               </CardContent>
             </Card>
           ) : (

@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { TimetableGrid } from '@/components/timetable/TimetableGrid';
 
 const TimetableHistoryPage: React.FC = () => {
   const { user, institute } = useAuth();
@@ -110,7 +111,13 @@ false; // No generatedBy field available in Timetable type
           </Button>
         </div>
         
-        <TimetableDisplayTable entries={selectedTimetable.entries} />
+        <TimetableGrid 
+          entries={selectedTimetable.entries}
+          department={selectedTimetable.department}
+          class={selectedTimetable.class}
+          semester={selectedTimetable.semester}
+          academicYear={selectedTimetable.academicYear || '2025-26'}
+        />
       </div>
     );
   }
@@ -288,80 +295,5 @@ false; // No generatedBy field available in Timetable type
 };
 
 // Inline timetable display component
-interface TimetableDisplayTableProps {
-  entries: TimetableEntry[];
-}
-
-const TimetableDisplayTable: React.FC<TimetableDisplayTableProps> = ({ entries }) => {
-  // Generate time slots for display (simplified version)
-  const generateTimeSlots = () => {
-    const slots = [];
-    for (let hour = 9; hour <= 17; hour++) {
-      const timeStr = `${hour.toString().padStart(2, '0')}:00`;
-      slots.push({
-        start: timeStr,
-        end: `${(hour + 1).toString().padStart(2, '0')}:00`,
-        label: `${timeStr} - ${(hour + 1).toString().padStart(2, '0')}:00`
-      });
-    }
-    return slots;
-  };
-
-  const timeSlots = generateTimeSlots();
-  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full border-collapse">
-        <thead>
-          <tr className="border-b border-border">
-            <th className="text-left py-3 px-4 font-medium text-muted-foreground min-w-[100px]">Time</th>
-            {days.map(day => (
-              <th key={day} className="text-left py-3 px-4 font-medium text-muted-foreground">
-                {day}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {timeSlots.map((slot, index) => (
-            <tr key={index} className="border-b border-border/50">
-              <td className="py-3 px-4 font-medium text-muted-foreground">{slot.label}</td>
-              {days.map((day) => {
-                const entry = entries.find(e => 
-                  e.day === day && e.startTime === slot.start
-                );
-                
-                if (!entry) {
-                  return <td key={day} className="py-3 px-4 text-center text-muted-foreground">-</td>;
-                }
-                
-                const colors = [
-                  'bg-blue-50 dark:bg-blue-950/30 border-l-4 border-blue-500',
-                  'bg-green-50 dark:bg-green-950/30 border-l-4 border-green-500',
-                  'bg-purple-50 dark:bg-purple-950/30 border-l-4 border-purple-500',
-                  'bg-orange-50 dark:bg-orange-950/30 border-l-4 border-orange-500',
-                  'bg-teal-50 dark:bg-teal-950/30 border-l-4 border-teal-500',
-                ];
-                const colorClass = colors[index % colors.length];
-                
-                return (
-                  <td key={day} className="py-3 px-4">
-                    <div className={`${colorClass} rounded-lg p-3`}>
-                      <div className="font-medium text-sm text-foreground">{entry.subjectName}</div>
-                      <div className="text-xs text-muted-foreground">{entry.facultyName}</div>
-                      <div className="text-xs text-muted-foreground">{entry.room}</div>
-                      <div className="text-xs text-muted-foreground capitalize">{entry.type}</div>
-                    </div>
-                  </td>
-                );
-              })}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-};
 
 export default TimetableHistoryPage;
