@@ -67,8 +67,8 @@ const TimetableHistoryPage: React.FC = () => {
       history.department.toLowerCase().includes(searchQuery.toLowerCase()) ||
 false; // No generatedBy field available in Timetable type
     
-    const matchesClass = filterClass === '' || history.class === filterClass;
-    const matchesDepartment = filterDepartment === '' || history.department === filterDepartment;
+    const matchesClass = filterClass === 'all' || filterClass === '' || history.class === filterClass;
+    const matchesDepartment = filterDepartment === 'all' || filterDepartment === '' || history.department === filterDepartment;
     
     return matchesSearch && matchesClass && matchesDepartment;
   });
@@ -155,7 +155,7 @@ false; // No generatedBy field available in Timetable type
                 <SelectValue placeholder="Filter by Class" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Classes</SelectItem>
+                <SelectItem value="all">All Classes</SelectItem>
                 {uniqueClasses.map(cls => (
                   <SelectItem key={cls} value={cls}>{cls}</SelectItem>
                 ))}
@@ -167,7 +167,7 @@ false; // No generatedBy field available in Timetable type
                 <SelectValue placeholder="Filter by Department" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Departments</SelectItem>
+                <SelectItem value="all">All Departments</SelectItem>
                 {uniqueDepartments.map(dept => (
                   <SelectItem key={dept} value={dept}>{dept}</SelectItem>
                 ))}

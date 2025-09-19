@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -75,7 +76,9 @@ export const InstituteSelectionModal: React.FC<InstituteSelectionModalProps> = (
             </div>
             <div>
               <DialogTitle className="text-2xl font-semibold">Select Your Institute</DialogTitle>
-              <p className="text-muted-foreground mt-2">Choose your institute to continue</p>
+              <DialogDescription className="text-muted-foreground mt-2">
+                Choose your institute to continue
+              </DialogDescription>
             </div>
           </div>
         </DialogHeader>

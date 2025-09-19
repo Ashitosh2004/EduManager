@@ -122,7 +122,7 @@ export const TimetableGenerator: React.FC<TimetableGeneratorProps> = ({ onBack }
 
   // Helper function to get room name from session (prefer ID over name for consistency)
   const getRoomName = (session: SessionInput): string => {
-    if (session.classroomId && session.classroomId !== '') {
+    if (session.classroomId && session.classroomId !== '' && session.classroomId !== 'custom') {
       const classroom = classrooms.find(c => c.id === session.classroomId);
       return classroom ? classroom.name : session.roomText || '';
     }
@@ -1082,7 +1082,7 @@ export const TimetableGenerator: React.FC<TimetableGeneratorProps> = ({ onBack }
                                     <SelectValue placeholder="Select classroom" />
                                   </SelectTrigger>
                                   <SelectContent>
-                                    <SelectItem value="">Custom room</SelectItem>
+                                    <SelectItem value="custom">Custom room</SelectItem>
                                     {classrooms.map(classroom => (
                                       <SelectItem key={classroom.id} value={classroom.id}>
                                         {classroom.name} ({classroom.capacity} capacity)
