@@ -553,8 +553,8 @@ const StudentManager: React.FC = () => {
                     <SelectValue placeholder="Select semester" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="1">1st Semester</SelectItem>
-                    <SelectItem value="2">2nd Semester</SelectItem>
+                    <SelectItem value="1">Sem 1</SelectItem>
+                    <SelectItem value="2">Sem 2</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
