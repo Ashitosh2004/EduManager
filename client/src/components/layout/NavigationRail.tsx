@@ -8,7 +8,8 @@ import {
   Users, 
   UserCheck, 
   BookOpen, 
-  Calendar, 
+  Calendar,
+  History, 
   Settings, 
   LogOut 
 } from 'lucide-react';
@@ -43,6 +44,12 @@ const navigationItems = [
     label: 'Timetable',
     icon: Calendar,
     path: '/timetable'
+  },
+  {
+    id: 'timetable-history',
+    label: 'History',
+    icon: History,
+    path: '/timetable-history'
   }
 ];
 

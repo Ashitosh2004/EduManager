@@ -14,6 +14,7 @@ import StudentManager from '@/pages/student-manager';
 import FacultyManager from '@/pages/faculty-manager';
 import CourseManager from '@/pages/course-manager';
 import TimetableGenerator from '@/pages/timetable-generator';
+import TimetableHistoryPage from '@/pages/timetable-history';
 
 interface AppShellProps {
   page?: string;
@@ -46,6 +47,8 @@ export const AppShell: React.FC<AppShellProps> = ({ page = 'dashboard' }) => {
         return <CourseManager />;
       case 'timetable':
         return <TimetableGenerator />;
+      case 'timetable-history':
+        return <TimetableHistoryPage />;
       default:
         return <Dashboard />;
     }
