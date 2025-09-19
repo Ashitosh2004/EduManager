@@ -57,7 +57,7 @@ export const TimetableGenerator: React.FC<TimetableGeneratorProps> = ({ onBack }
   const [formData, setFormData] = useState({
     department: '',
     class: '',
-    semester: 'Fall 2024'
+    semester: 'Sem 1'
   });
 
   // User-defined timetable parameters
@@ -885,9 +885,8 @@ export const TimetableGenerator: React.FC<TimetableGeneratorProps> = ({ onBack }
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Fall 2024">Fall 2024</SelectItem>
-                    <SelectItem value="Spring 2024">Spring 2024</SelectItem>
-                    <SelectItem value="Summer 2024">Summer 2024</SelectItem>
+                    <SelectItem value="Sem 1">Sem 1</SelectItem>
+                    <SelectItem value="Sem 2">Sem 2</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
