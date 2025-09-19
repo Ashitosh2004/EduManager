@@ -38,7 +38,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       try {
         if (firebaseUser) {
           // Get user data from Firestore
-          let userData = await firestoreService.getUser(firebaseUser.uid);
+          let userData;
+          try {
+            userData = await firestoreService.getUser(firebaseUser.uid);
+          } catch (firestoreError) {
+            console.warn('Firestore not available, using basic user data:', firestoreError);
+            // Create basic user data without Firestore
+            userData = {
+              id: firebaseUser.uid,
+              email: firebaseUser.email || '',
+              name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
+              role: 'faculty' as const,
+              instituteId: 'default',
+              lastLoginAt: new Date(),
+            };
+          }
           
           if (!userData) {
             // User doesn't exist in Firestore, create them
@@ -76,11 +90,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           }
           
           if (userData) {
-            // Update last login time
-            await firestoreService.updateUser(userData.id, { lastLoginAt: new Date() });
+            // Update last login time (skip if Firestore not available)
+            try {
+              await firestoreService.updateUser(userData.id, { lastLoginAt: new Date() });
+            } catch (updateError) {
+              console.warn('Could not update user login time:', updateError);
+            }
             
-            // Get institute data
-            const instituteData = await firestoreService.getInstitute(userData.instituteId);
+            // Get institute data (use default if Firestore not available)
+            let instituteData;
+            try {
+              instituteData = await firestoreService.getInstitute(userData.instituteId);
+            } catch (instituteError) {
+              console.warn('Could not fetch institute data, using default:', instituteError);
+              instituteData = {
+                id: 'default',
+                name: 'Default Institute',
+                domain: '@example.com',
+                createdAt: new Date(),
+              };
+            }
+            
             setAuthState({
               user: userData,
               institute: instituteData,
