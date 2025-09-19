@@ -768,7 +768,7 @@ export const TimetableGenerator: React.FC<TimetableGeneratorProps> = ({ onBack }
                     <Input
                       id="session-duration"
                       type="number"
-                      value={timetableParams.sessionDuration}
+                      value={timetableParams.sessionDuration.toString()}
                       onChange={(e) => setTimetableParams(prev => ({ ...prev, sessionDuration: parseInt(e.target.value) || 60 }))}
                       className="h-8 text-xs"
                       data-testid="input-session-duration"
@@ -781,7 +781,7 @@ export const TimetableGenerator: React.FC<TimetableGeneratorProps> = ({ onBack }
                     <Input
                       id="short-break"
                       type="number"
-                      value={timetableParams.shortBreakDuration}
+                      value={timetableParams.shortBreakDuration.toString()}
                       onChange={(e) => setTimetableParams(prev => ({ ...prev, shortBreakDuration: parseInt(e.target.value) || 10 }))}
                       className="h-8 text-xs"
                       data-testid="input-short-break"
@@ -808,7 +808,7 @@ export const TimetableGenerator: React.FC<TimetableGeneratorProps> = ({ onBack }
                   <Input
                     id="lunch-duration"
                     type="number"
-                    value={timetableParams.lunchBreakDuration}
+                    value={timetableParams.lunchBreakDuration.toString()}
                     onChange={(e) => setTimetableParams(prev => ({ ...prev, lunchBreakDuration: parseInt(e.target.value) || 60 }))}
                     className="h-8 text-xs"
                     data-testid="input-lunch-duration"
@@ -822,7 +822,7 @@ export const TimetableGenerator: React.FC<TimetableGeneratorProps> = ({ onBack }
                   <Input
                     id="total-hours"
                     type="number"
-                    value={timetableParams.totalHours}
+                    value={isNaN(timetableParams.totalHours) ? '8' : timetableParams.totalHours.toString()}
                     onChange={(e) => setTimetableParams(prev => ({ ...prev, totalHours: parseFloat(e.target.value) || 8 }))}
                     className="h-8 text-xs"
                     data-testid="input-total-hours"
