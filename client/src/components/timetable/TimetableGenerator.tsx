@@ -15,7 +15,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { firestoreService } from '@/services/firestoreService';
 import { timetableService } from '@/services/timetableService';
 import { exportService } from '@/services/exportService';
-import { TimetableEntry, Timetable, Conflict, Faculty, Course, Student } from '@/types';
+import { TimetableEntry, Timetable, TimetableConfig, SessionInput, Conflict, Faculty, Course, Classroom, Student } from '@/types';
 import { 
   Calendar,
   Download,
@@ -25,7 +25,11 @@ import {
   Loader2,
   Sparkles,
   Clock,
-  Settings
+  Settings,
+  Plus,
+  Trash2,
+  Users,
+  BookOpen
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -44,8 +48,11 @@ export const TimetableGenerator: React.FC<TimetableGeneratorProps> = ({ onBack }
   // Dynamic data from Firebase
   const [faculty, setFaculty] = useState<Faculty[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
+  const [classrooms, setClassrooms] = useState<Classroom[]>([]);
   const [departments, setDepartments] = useState<string[]>([]);
-  const [classes, setClasses] = useState<Record<string, string[]>>({});
+  const [classes, setClasses] = useState<Record<string, string[]>>({});  // Session configuration state
+  const [sessions, setSessions] = useState<SessionInput[]>([]);
+  const [sessionConflicts, setSessionConflicts] = useState<Record<string, Conflict[]>>({});
   
   const [formData, setFormData] = useState({
     department: '',
@@ -64,6 +71,252 @@ export const TimetableGenerator: React.FC<TimetableGeneratorProps> = ({ onBack }
     sessionDuration: 60
   });
 
+  // Calculate total hours automatically
+  useEffect(() => {
+    const startMinutes = parseTimeToMinutes(timetableParams.startTime);
+    const endMinutes = parseTimeToMinutes(timetableParams.endTime);
+    const totalMinutes = endMinutes - startMinutes;
+    const totalHours = Math.round(totalMinutes / 60 * 10) / 10; // Round to 1 decimal
+    
+    setTimetableParams(prev => ({ ...prev, totalHours }));
+  }, [timetableParams.startTime, timetableParams.endTime]);
+
+  // Session management functions
+  const addSession = () => {
+    const newSession: SessionInput = {
+      id: `session-${Date.now()}`,
+      subjectId: '',
+      facultyId: '',
+      type: 'lecture',
+      durationMinutes: timetableParams.sessionDuration,
+      classroomId: '',
+      roomText: ''
+    };
+    setSessions(prev => [...prev, newSession]);
+  };
+
+  const updateSession = (sessionId: string, updates: Partial<SessionInput>) => {
+    setSessions(prev => {
+      const updated = prev.map(session => 
+        session.id === sessionId ? { ...session, ...updates } : session
+      );
+      return updated;
+    });
+    
+    // Clear existing conflicts for this session
+    setSessionConflicts(prev => {
+      const updated = { ...prev };
+      delete updated[sessionId];
+      return updated;
+    });
+  };
+
+  const removeSession = (sessionId: string) => {
+    setSessions(prev => prev.filter(session => session.id !== sessionId));
+    setSessionConflicts(prev => {
+      const updated = { ...prev };
+      delete updated[sessionId];
+      return updated;
+    });
+  };
+
+  // Helper function to get room name from session (prefer ID over name for consistency)
+  const getRoomName = (session: SessionInput): string => {
+    if (session.classroomId && session.classroomId !== '') {
+      const classroom = classrooms.find(c => c.id === session.classroomId);
+      return classroom ? classroom.name : session.roomText || '';
+    }
+    return session.roomText || '';
+  };
+
+  // Helper function to get room ID for conflict checking (prefer ID when available)
+  const getRoomId = (session: SessionInput): string => {
+    return session.classroomId || session.roomText || '';
+  };
+
+  // Helper function to create tentative schedule for conflict checking
+  const createTentativeSchedule = (sessionList: SessionInput[]) => {
+    const schedule: {
+      session: SessionInput;
+      day: string;
+      startMinutes: number;
+      endMinutes: number;
+    }[] = [];
+    
+    const timeSlots = generateTimeSlots();
+    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+    
+    let slotIndex = 0;
+    let dayIndex = 0;
+    
+    for (const session of sessionList) {
+      if (!session.subjectId || !session.facultyId) continue;
+      
+      // Calculate how many time slots this session needs
+      const slotsNeeded = Math.ceil(session.durationMinutes / timetableParams.sessionDuration);
+      
+      if (session.day) {
+        // Session has a specified day - must honor it
+        if (slotIndex + slotsNeeded <= timeSlots.length) {
+          const startSlot = timeSlots[slotIndex];
+          const endSlot = timeSlots[Math.min(slotIndex + slotsNeeded - 1, timeSlots.length - 1)];
+          
+          schedule.push({
+            session,
+            day: session.day,
+            startMinutes: parseTimeToMinutes(startSlot.start),
+            endMinutes: parseTimeToMinutes(endSlot.end)
+          });
+          
+          slotIndex += slotsNeeded;
+        }
+        // If no room on the specified day, skip this session (will be detected as conflict)
+      } else {
+        // No day specified - assign automatically
+        const assignedDay = days[dayIndex % days.length];
+        
+        if (slotIndex + slotsNeeded <= timeSlots.length) {
+          const startSlot = timeSlots[slotIndex];
+          const endSlot = timeSlots[Math.min(slotIndex + slotsNeeded - 1, timeSlots.length - 1)];
+          
+          schedule.push({
+            session,
+            day: assignedDay,
+            startMinutes: parseTimeToMinutes(startSlot.start),
+            endMinutes: parseTimeToMinutes(endSlot.end)
+          });
+          
+          slotIndex += slotsNeeded;
+        } else {
+          // Move to next day
+          dayIndex++;
+          slotIndex = 0;
+          
+          if (dayIndex < days.length && slotIndex + slotsNeeded <= timeSlots.length) {
+            const startSlot = timeSlots[slotIndex];
+            const endSlot = timeSlots[Math.min(slotIndex + slotsNeeded - 1, timeSlots.length - 1)];
+            
+            schedule.push({
+              session,
+              day: days[dayIndex],
+              startMinutes: parseTimeToMinutes(startSlot.start),
+              endMinutes: parseTimeToMinutes(endSlot.end)
+            });
+            
+            slotIndex += slotsNeeded;
+          }
+        }
+      }
+    }
+    
+    return schedule;
+  };
+
+  // Validate sessions for conflicts (run after sessions state updates)
+  useEffect(() => {
+    if (!institute || !formData.class || sessions.length === 0) {
+      return;
+    }
+
+    const validateAllSessions = async () => {
+      const newConflicts: Record<string, Conflict[]> = {};
+      
+      // First, create a tentative schedule to determine where each session would be placed
+      const tentativeSchedule = createTentativeSchedule(sessions);
+      
+      // Parallelize external conflict detection
+      const externalConflictPromises = tentativeSchedule.map(async (scheduledSession) => {
+        const conflicts: Conflict[] = [];
+        
+        try {
+          const conflictEntry = {
+            instituteId: institute.id,
+            facultyId: scheduledSession.session.facultyId,
+            room: getRoomId(scheduledSession.session), // Use ID for more precise matching
+            day: scheduledSession.day,
+            startMinutes: scheduledSession.startMinutes,
+            endMinutes: scheduledSession.endMinutes,
+            class: formData.class
+          };
+          
+          const conflictingSessions = await firestoreService.getConflictingSessions(conflictEntry);
+          
+          conflictingSessions.forEach(conflictingSession => {
+            const conflict: Conflict = {
+              type: conflictingSession.facultyId === scheduledSession.session.facultyId ? 'teacher' : 'room',
+              severity: 'high',
+              description: conflictingSession.facultyId === scheduledSession.session.facultyId 
+                ? `Faculty ${faculty.find(f => f.id === scheduledSession.session.facultyId)?.name || 'Unknown'} is already scheduled on ${scheduledSession.day} at ${formatMinutesToTime(scheduledSession.startMinutes)}`
+                : `Room ${getRoomName(scheduledSession.session)} is already booked on ${scheduledSession.day} at ${formatMinutesToTime(scheduledSession.startMinutes)}`,
+              resolved: false,
+              sessionId: scheduledSession.session.id
+            };
+            conflicts.push(conflict);
+          });
+        } catch (error) {
+          console.error('Error validating external conflicts for session:', scheduledSession.session.id, error);
+          // Add a warning about external validation failure
+          conflicts.push({
+            type: 'preference',
+            severity: 'low',
+            description: 'Unable to check conflicts against existing timetables. Please verify manually.',
+            resolved: false,
+            sessionId: scheduledSession.session.id
+          });
+        }
+        
+        return { sessionId: scheduledSession.session.id, externalConflicts: conflicts, scheduledSession };
+      });
+      
+      const externalResults = await Promise.all(externalConflictPromises);
+      
+      // Process results and add internal conflicts
+      for (const result of externalResults) {
+        const { sessionId, externalConflicts, scheduledSession } = result;
+        const allConflicts = [...externalConflicts];
+          
+        // Check for conflicts within the current session set
+        tentativeSchedule.forEach(otherScheduled => {
+          if (otherScheduled.session.id !== scheduledSession.session.id &&
+              otherScheduled.day === scheduledSession.day &&
+              scheduledSession.startMinutes < otherScheduled.endMinutes &&
+              otherScheduled.startMinutes < scheduledSession.endMinutes) {
+            
+            if (otherScheduled.session.facultyId === scheduledSession.session.facultyId) {
+              allConflicts.push({
+                type: 'teacher',
+                severity: 'high',
+                description: `Faculty scheduling conflict with another session on ${scheduledSession.day}`,
+                resolved: false,
+                sessionId: scheduledSession.session.id
+              });
+            }
+            
+            // Use room ID comparison when available for more precise matching
+            const roomId1 = getRoomId(otherScheduled.session);
+            const roomId2 = getRoomId(scheduledSession.session);
+            if (roomId1 === roomId2 && roomId1 !== '') {
+              allConflicts.push({
+                type: 'room',
+                severity: 'medium',
+                description: `Room scheduling conflict with another session on ${scheduledSession.day}`,
+                resolved: false,
+                sessionId: scheduledSession.session.id
+              });
+            }
+          }
+        });
+        
+        newConflicts[sessionId] = allConflicts;
+      }
+      
+      setSessionConflicts(newConflicts);
+    };
+
+    const timeoutId = setTimeout(validateAllSessions, 500); // Debounce validation
+    return () => clearTimeout(timeoutId);
+  }, [sessions, institute, formData.class, faculty, classrooms, timetableParams]);
+
   // Load dynamic data from Firebase
   useEffect(() => {
     if (institute) {
@@ -77,11 +330,14 @@ export const TimetableGenerator: React.FC<TimetableGeneratorProps> = ({ onBack }
     try {
       setLoadingData(true);
       
-      // Load faculty and courses from Firebase
-      const [facultyData, coursesData] = await Promise.all([
+      // Load faculty, courses, and classrooms from Firebase
+      const [facultyData, coursesData, classroomsData] = await Promise.all([
         firestoreService.getFacultyByInstitute(institute.id),
-        firestoreService.getCoursesByInstitute(institute.id)
-      ]);
+        firestoreService.getCoursesByInstitute(institute.id),
+        firestoreService.getClassroomsByInstitute(institute.id)
+      ]);  setFaculty(facultyData);
+      setCourses(coursesData);
+      setClassrooms(classroomsData);
 
       setFaculty(facultyData);
       setCourses(coursesData);
@@ -137,15 +393,28 @@ export const TimetableGenerator: React.FC<TimetableGeneratorProps> = ({ onBack }
       setLoading(true);
       
       // Generate timetable with dynamic data and user parameters
+      const config: TimetableConfig = {
+        startTime: timetableParams.startTime,
+        endTime: timetableParams.endTime,
+        totalHours: timetableParams.totalHours,
+        shortBreakDuration: timetableParams.shortBreakDuration,
+        lunchBreakDuration: timetableParams.lunchBreakDuration,
+        lunchBreakStart: timetableParams.lunchBreakStart,
+        sessionDuration: timetableParams.sessionDuration
+      };
+
       const dynamicTimetable: Timetable = {
         id: `tt-${Date.now()}`,
         class: formData.class,
         department: formData.department,
         semester: formData.semester,
         academicYear: '2024-2025',
-        entries: generateDynamicEntries(),
+        entries: sessions.length > 0 ? generateEntriesFromSessions() : generateDynamicEntries(),
+        sessions,
+        config,
         conflicts: [],
         generatedAt: new Date(),
+        createdAt: new Date(),
         instituteId: institute.id
       };
 
@@ -274,17 +543,59 @@ export const TimetableGenerator: React.FC<TimetableGeneratorProps> = ({ onBack }
             facultyId: assignedFaculty.id,
             facultyName: assignedFaculty.name,
             class: formData.class,
+            department: formData.department,
             room: `Room ${Math.floor(Math.random() * 500) + 100}`, // Generate room numbers dynamically
             day,
             timeSlot: `slot-${slotIndex}`,
             startTime: slot.start,
-            endTime: slot.end
+            endTime: slot.end,
+            type: Math.random() > 0.7 ? 'lab' : 'lecture', // Random type assignment
+            durationMinutes: timetableParams.sessionDuration
           });
           courseIndex++;
         }
       });
     });
 
+    return entries;
+  };
+
+  // Generate timetable entries from user-defined sessions
+  const generateEntriesFromSessions = (): TimetableEntry[] => {
+    if (sessions.length === 0) {
+      return [];
+    }
+    
+    const entries: TimetableEntry[] = [];
+    const tentativeSchedule = createTentativeSchedule(sessions);
+    
+    tentativeSchedule.forEach((scheduledSession, index) => {
+      const session = scheduledSession.session;
+      const course = courses.find(c => c.id === session.subjectId);
+      const facultyMember = faculty.find(f => f.id === session.facultyId);
+      
+      if (course && facultyMember) {
+        const entry: TimetableEntry = {
+          id: `entry-${scheduledSession.day}-${index}`,
+          subjectId: session.subjectId,
+          subjectName: course.name,
+          facultyId: session.facultyId,
+          facultyName: facultyMember.name,
+          class: formData.class,
+          department: formData.department,
+          room: getRoomName(session) || 'TBA',
+          day: scheduledSession.day,
+          timeSlot: `slot-${index}`,
+          startTime: formatMinutesToTime(scheduledSession.startMinutes),
+          endTime: formatMinutesToTime(scheduledSession.endMinutes),
+          type: session.type,
+          durationMinutes: session.durationMinutes
+        };
+        
+        entries.push(entry);
+      }
+    });
+    
     return entries;
   };
 
@@ -505,6 +816,23 @@ export const TimetableGenerator: React.FC<TimetableGeneratorProps> = ({ onBack }
                     max="120"
                   />
                 </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="total-hours" className="text-xs">Total Hours</Label>
+                  <Input
+                    id="total-hours"
+                    type="number"
+                    value={timetableParams.totalHours}
+                    onChange={(e) => setTimetableParams(prev => ({ ...prev, totalHours: parseFloat(e.target.value) || 8 }))}
+                    className="h-8 text-xs"
+                    data-testid="input-total-hours"
+                    step="0.5"
+                    min="1"
+                    max="12"
+                    readOnly
+                  />
+                  <p className="text-xs text-muted-foreground">Auto-calculated from start/end times</p>
+                </div>
               </div>
 
               <div className="border-t border-border pt-4 space-y-4">
@@ -624,8 +952,190 @@ export const TimetableGenerator: React.FC<TimetableGeneratorProps> = ({ onBack }
           </Card>
         </div>
 
-        {/* Timetable Display */}
-        <div className="lg:col-span-3">
+        {/* Session Configuration */}
+        <div className="lg:col-span-3 space-y-6">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center space-x-2">
+                  <BookOpen className="h-5 w-5" />
+                  <span>Session Configuration</span>
+                </CardTitle>
+                <Button
+                  onClick={addSession}
+                  size="sm"
+                  disabled={!formData.department || !formData.class}
+                  data-testid="button-add-session"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Session
+                </Button>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Configure individual sessions for your timetable. Each session will be automatically scheduled based on availability.
+              </p>
+            </CardHeader>
+            <CardContent>
+              {sessions.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <BookOpen className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p className="text-lg font-medium">No sessions configured</p>
+                  <p className="text-sm">Add sessions to create a custom timetable, or generate automatically using the button in the configuration panel.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {sessions.map((session, index) => {
+                    const course = courses.find(c => c.id === session.subjectId);
+                    const facultyMember = faculty.find(f => f.id === session.facultyId);
+                    const classroom = classrooms.find(c => c.id === session.classroomId);
+                    const conflicts = sessionConflicts[session.id] || [];
+                    
+                    return (
+                      <Card key={session.id} className={`${conflicts.length > 0 ? 'border-destructive' : ''}`}>
+                        <CardContent className="pt-6">
+                          <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+                            {/* Subject/Course */}
+                            <div className="space-y-1">
+                              <Label className="text-xs font-medium">Subject</Label>
+                              <Select
+                                value={session.subjectId}
+                                onValueChange={(value) => updateSession(session.id, { subjectId: value })}
+                              >
+                                <SelectTrigger className="h-8 text-xs" data-testid={`select-subject-${index}`}>
+                                  <SelectValue placeholder="Select subject" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {courses
+                                    .filter(c => c.department === formData.department)
+                                    .map(course => (
+                                      <SelectItem key={course.id} value={course.id}>
+                                        {course.name} ({course.code})
+                                      </SelectItem>
+                                    ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            
+                            {/* Faculty */}
+                            <div className="space-y-1">
+                              <Label className="text-xs font-medium">Faculty</Label>
+                              <Select
+                                value={session.facultyId}
+                                onValueChange={(value) => updateSession(session.id, { facultyId: value })}
+                              >
+                                <SelectTrigger className="h-8 text-xs" data-testid={`select-faculty-${index}`}>
+                                  <SelectValue placeholder="Select faculty" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {faculty
+                                    .filter(f => f.department === formData.department)
+                                    .map(facultyMember => (
+                                      <SelectItem key={facultyMember.id} value={facultyMember.id}>
+                                        {facultyMember.name}
+                                      </SelectItem>
+                                    ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            
+                            {/* Type */}
+                            <div className="space-y-1">
+                              <Label className="text-xs font-medium">Type</Label>
+                              <Select
+                                value={session.type}
+                                onValueChange={(value) => updateSession(session.id, { type: value as 'lecture' | 'lab' })}
+                              >
+                                <SelectTrigger className="h-8 text-xs" data-testid={`select-type-${index}`}>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="lecture">Lecture</SelectItem>
+                                  <SelectItem value="lab">Lab</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            
+                            {/* Duration */}
+                            <div className="space-y-1">
+                              <Label className="text-xs font-medium">Duration (min)</Label>
+                              <Input
+                                type="number"
+                                value={session.durationMinutes}
+                                onChange={(e) => updateSession(session.id, { durationMinutes: parseInt(e.target.value) || 60 })}
+                                className="h-8 text-xs"
+                                min="30"
+                                max="180"
+                                step="15"
+                                data-testid={`input-duration-${index}`}
+                              />
+                            </div>
+                            
+                            {/* Classroom */}
+                            <div className="space-y-1">
+                              <Label className="text-xs font-medium">Classroom</Label>
+                              {classrooms.length > 0 ? (
+                                <Select
+                                  value={session.classroomId}
+                                  onValueChange={(value) => updateSession(session.id, { classroomId: value, roomText: '' })}
+                                >
+                                  <SelectTrigger className="h-8 text-xs" data-testid={`select-classroom-${index}`}>
+                                    <SelectValue placeholder="Select classroom" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="">Custom room</SelectItem>
+                                    {classrooms.map(classroom => (
+                                      <SelectItem key={classroom.id} value={classroom.id}>
+                                        {classroom.name} ({classroom.capacity} capacity)
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              ) : (
+                                <Input
+                                  value={session.roomText}
+                                  onChange={(e) => updateSession(session.id, { roomText: e.target.value, classroomId: '' })}
+                                  placeholder="Room name"
+                                  className="h-8 text-xs"
+                                  data-testid={`input-room-${index}`}
+                                />
+                              )}
+                            </div>
+                            
+                            {/* Actions */}
+                            <div className="flex items-end">
+                              <Button
+                                onClick={() => removeSession(session.id)}
+                                variant="outline"
+                                size="sm"
+                                className="h-8 text-xs text-destructive hover:text-destructive"
+                                data-testid={`button-remove-session-${index}`}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </div>
+                          
+                          {/* Conflict Indicators */}
+                          {conflicts.length > 0 && (
+                            <div className="mt-3 p-2 bg-destructive/10 border border-destructive/20 rounded-md">
+                              <p className="text-xs font-medium text-destructive mb-1">Conflicts detected:</p>
+                              {conflicts.map((conflict, conflictIndex) => (
+                                <p key={conflictIndex} className="text-xs text-destructive">
+                                  • {conflict.description}
+                                </p>
+                              ))}
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+          
+          {/* Timetable Display */}
           {generatedTimetable ? (
             <Card>
               <CardHeader>
