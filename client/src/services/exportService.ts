@@ -16,20 +16,31 @@ class ExportService {
   async exportTimetableToPDF(timetable: Timetable): Promise<void> {
     const doc = new jsPDF('landscape');
     
-    // Add title
+    // Professional header matching TimetableGrid format
     doc.setFontSize(20);
-    doc.text(`Timetable - ${timetable.class}`, 20, 20);
+    const titleText = timetable.class?.toUpperCase() || timetable.department.toUpperCase();
+    doc.text(titleText, 20, 20);
     
-    // Add metadata
-    doc.setFontSize(12);
-    doc.text(`Department: ${timetable.department}`, 20, 35);
-    doc.text(`Semester: ${timetable.semester}`, 20, 45);
-    doc.text(`Academic Year: ${timetable.academicYear}`, 20, 55);
-    doc.text(`Generated: ${new Date(timetable.generatedAt).toLocaleDateString()}`, 20, 65);
+    // Add academic info in horizontal layout
+    doc.setFontSize(10);
+    doc.text(`Academic Year-${timetable.academicYear}`, 20, 35);
+    doc.text(`${timetable.semester}`, 150, 35);
+    doc.text(`Generated: ${new Date(timetable.generatedAt).toLocaleDateString()}`, 220, 35);
 
-    // Prepare timetable data
-    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-    const timeSlots = this.getUniqueTimeSlots(timetable.entries);
+    // Fixed university timetable time slots matching TimetableGrid
+    const timeSlots = [
+      { time: "09:00", label: "9:00", isBreak: false },
+      { time: "10:00", label: "10:00", isBreak: false },
+      { time: "break1", label: "Short Break", isBreak: true },
+      { time: "11:15", label: "11:15", isBreak: false },
+      { time: "12:15", label: "12:15", isBreak: false },
+      { time: "break2", label: "Lunch Break", isBreak: true },
+      { time: "14:00", label: "14:00", isBreak: false },
+      { time: "15:00", label: "15:00", isBreak: false }
+    ];
+    
+    // Abbreviated days matching TimetableGrid
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
     
     // Create table data
     const tableData = [];
@@ -38,36 +49,69 @@ class ExportService {
     const header = ['Time', ...days];
     tableData.push(header);
     
-    // Data rows
-    timeSlots.forEach(timeSlot => {
-      const row = [timeSlot];
-      days.forEach(day => {
-        const entry = timetable.entries.find(e => 
-          e.day === day && e.startTime === timeSlot
-        );
-        const cellData = entry 
-          ? `${entry.subjectName}\n${entry.facultyName}\n${entry.room}`
-          : '-';
-        row.push(cellData);
-      });
-      tableData.push(row);
+    // Data rows with TimetableGrid formatting
+    timeSlots.forEach(slot => {
+      if (slot.isBreak) {
+        // Break row - span across all days
+        const breakRow = [slot.label, slot.label, slot.label, slot.label, slot.label, slot.label];
+        tableData.push(breakRow);
+      } else {
+        const row = [slot.label];
+        days.forEach(day => {
+          // Find all entries for this day and time slot
+          const dayEntries = timetable.entries.filter(e => {
+            const entryDay = e.day?.substring(0, 3); // Convert "Monday" to "Mon"
+            const entryTime = this.normalizeTime(e.startTime);
+            return entryDay === day && entryTime === slot.time;
+          });
+
+          if (dayEntries.length === 0) {
+            row.push('-');
+          } else {
+            // Format multiple entries with TimetableGrid format
+            const cellContent = dayEntries.map(entry => 
+              this.formatCellContentForPDF(entry)
+            ).join('\n');
+            row.push(cellContent);
+          }
+        });
+        tableData.push(row);
+      }
     });
 
-    // Add table
+    // Add table with professional university styling
     doc.autoTable({
       head: [header],
       body: tableData.slice(1),
-      startY: 75,
+      startY: 50,
       styles: {
-        fontSize: 8,
-        cellPadding: 3
+        fontSize: 9,
+        cellPadding: 4,
+        lineWidth: 0.5,
+        lineColor: [0, 0, 0]
       },
       headStyles: {
-        fillColor: [33, 150, 243],
-        textColor: 255
+        fillColor: [41, 128, 185],
+        textColor: 255,
+        fontStyle: 'bold',
+        halign: 'center'
       },
-      alternateRowStyles: {
-        fillColor: [245, 245, 245]
+      columnStyles: {
+        0: { halign: 'center', fillColor: [236, 240, 241] }, // Time column
+        1: { halign: 'center' },
+        2: { halign: 'center' },
+        3: { halign: 'center' },
+        4: { halign: 'center' },
+        5: { halign: 'center' }
+      },
+      didParseCell: function(data: any) {
+        // Style break rows
+        if (data.cell.raw.includes('Break')) {
+          data.cell.styles.fillColor = [149, 165, 166];
+          data.cell.styles.textColor = 255;
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.halign = 'center';
+        }
       }
     });
 
@@ -109,9 +153,20 @@ class ExportService {
   async exportTimetableToExcel(timetable: Timetable): Promise<void> {
     const workbook = XLSX.utils.book_new();
     
-    // Main timetable sheet
-    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-    const timeSlots = this.getUniqueTimeSlots(timetable.entries);
+    // Fixed university timetable time slots matching TimetableGrid
+    const timeSlots = [
+      { time: "09:00", label: "9:00", isBreak: false },
+      { time: "10:00", label: "10:00", isBreak: false },
+      { time: "break1", label: "Short Break", isBreak: true },
+      { time: "11:15", label: "11:15", isBreak: false },
+      { time: "12:15", label: "12:15", isBreak: false },
+      { time: "break2", label: "Lunch Break", isBreak: true },
+      { time: "14:00", label: "14:00", isBreak: false },
+      { time: "15:00", label: "15:00", isBreak: false }
+    ];
+    
+    // Abbreviated days matching TimetableGrid
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
     
     // Prepare worksheet data
     const worksheetData = [];
@@ -119,19 +174,34 @@ class ExportService {
     // Header row
     worksheetData.push(['Time', ...days]);
     
-    // Data rows
-    timeSlots.forEach(timeSlot => {
-      const row = [timeSlot];
-      days.forEach(day => {
-        const entry = timetable.entries.find(e => 
-          e.day === day && e.startTime === timeSlot
-        );
-        const cellData = entry 
-          ? `${entry.subjectName}\n${entry.facultyName}\n${entry.room}`
-          : '-';
-        row.push(cellData);
-      });
-      worksheetData.push(row);
+    // Data rows with TimetableGrid formatting
+    timeSlots.forEach((slot) => {
+      if (slot.isBreak) {
+        // Break row - span across all days
+        const breakRow = [slot.label, slot.label, slot.label, slot.label, slot.label, slot.label];
+        worksheetData.push(breakRow);
+      } else {
+        const row = [slot.label];
+        days.forEach(day => {
+          // Find all entries for this day and time slot
+          const dayEntries = timetable.entries.filter(e => {
+            const entryDay = e.day?.substring(0, 3); // Convert "Monday" to "Mon"
+            const entryTime = this.normalizeTime(e.startTime);
+            return entryDay === day && entryTime === slot.time;
+          });
+
+          if (dayEntries.length === 0) {
+            row.push('-');
+          } else {
+            // Format multiple entries with TimetableGrid format
+            const cellContent = dayEntries.map(entry => 
+              this.formatCellContentForPDF(entry)
+            ).join('\n');
+            row.push(cellContent);
+          }
+        });
+        worksheetData.push(row);
+      }
     });
 
     const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
@@ -283,15 +353,57 @@ class ExportService {
   }
 
   /**
-   * Get unique time slots from timetable entries
+   * Normalize time format for consistent matching
    */
-  private getUniqueTimeSlots(entries: TimetableEntry[]): string[] {
-    const timeSlots = Array.from(new Set(entries.map(e => e.startTime)));
-    return timeSlots.sort((a, b) => {
-      const timeA = new Date(`1970-01-01T${a}:00`);
-      const timeB = new Date(`1970-01-01T${b}:00`);
-      return timeA.getTime() - timeB.getTime();
-    });
+  private normalizeTime(timeStr: string): string {
+    if (!timeStr) return '';
+    
+    // Handle different time formats and normalize to HH:MM
+    const time = timeStr.trim();
+    
+    // If already in HH:MM format, return as-is
+    if (/^\d{2}:\d{2}$/.test(time)) {
+      return time;
+    }
+    
+    // Handle other formats if needed
+    return time;
+  }
+
+  /**
+   * Format cell content to match TimetableGrid format
+   */
+  private formatCellContentForPDF(entry: TimetableEntry): string {
+    // Get subject code from subject name 
+    const getSubjectCode = (subjectName: string): string => {
+      return subjectName
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase())
+        .join('')
+        .substring(0, 3) || subjectName.substring(0, 3).toUpperCase();
+    };
+
+    // Get faculty initials
+    const getFacultyInitials = (facultyName: string): string => {
+      return facultyName
+        .split(' ')
+        .map(name => name.charAt(0).toUpperCase())
+        .join('')
+        .substring(0, 3) || facultyName.substring(0, 3).toUpperCase();
+    };
+
+    // Format room number
+    const formatRoom = (room: string): string => {
+      if (!room) return '';
+      if (room.toLowerCase().includes('cr')) return room.toUpperCase();
+      return `CR ${room}`;
+    };
+
+    const subjectCode = getSubjectCode(entry.subjectName);
+    const facultyInitials = getFacultyInitials(entry.facultyName);
+    const room = formatRoom(entry.room);
+    
+    return `${subjectCode}-${facultyInitials}${room ? ' ' + room : ''}`;
   }
 
   /**

@@ -26,9 +26,12 @@ import {
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TimetableGrid } from '@/components/timetable/TimetableGrid';
+import { useToast } from '@/hooks/use-toast';
+import { exportService } from '@/services/exportService';
 
 const TimetableHistoryPage: React.FC = () => {
   const { user, institute } = useAuth();
+  const { toast } = useToast();
   const [histories, setHistories] = useState<Timetable[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -265,9 +268,20 @@ false; // No generatedBy field available in Timetable type
                       View
                     </Button>
                     <Button 
-                      onClick={() => {
-                        // TODO: Implement PDF export functionality
-                        console.log('Export timetable:', history.id);
+                      onClick={async () => {
+                        try {
+                          await exportService.exportTimetableToPDF(history);
+                          toast({
+                            title: "Export Successful",
+                            description: "Timetable exported as PDF successfully.",
+                          });
+                        } catch (error) {
+                          toast({
+                            title: "Export Failed",
+                            description: "Failed to export timetable as PDF.",
+                            variant: "destructive",
+                          });
+                        }
                       }}
                       variant="outline" 
                       size="sm"
