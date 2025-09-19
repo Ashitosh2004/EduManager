@@ -18,7 +18,9 @@ import {
   Faculty, 
   Student, 
   Course, 
+  Classroom,
   Timetable, 
+  SessionIndexEntry,
   User,
   Activity,
   Event as EventType,
@@ -303,6 +305,36 @@ class FirestoreService {
     }
   }
 
+  // Classroom operations
+  async getClassroomsByInstitute(instituteId: string): Promise<Classroom[]> {
+    try {
+      const q = query(
+        collection(db, 'classrooms'),
+        where('instituteId', '==', instituteId)
+      );
+      const querySnapshot = await getDocs(q);
+      const classrooms = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Classroom[];
+      
+      return classrooms.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    } catch (error) {
+      console.error('Error getting classrooms:', error);
+      return [];
+    }
+  }
+
+  async createClassroom(classroom: Omit<Classroom, 'id'>): Promise<string> {
+    try {
+      const docRef = await addDoc(collection(db, 'classrooms'), classroom);
+      return docRef.id;
+    } catch (error) {
+      console.error('Error creating classroom:', error);
+      throw error;
+    }
+  }
+
   // Timetable operations
   async getTimetablesByInstitute(instituteId: string): Promise<Timetable[]> {
     try {
@@ -329,21 +361,51 @@ class FirestoreService {
     }
   }
 
+  async getTimetablesByFilters(instituteId: string, filters: {
+    department?: string;
+    class?: string;
+    semester?: string;
+  }): Promise<Timetable[]> {
+    try {
+      const allTimetables = await this.getTimetablesByInstitute(instituteId);
+      
+      return allTimetables.filter(timetable => {
+        if (filters.department && timetable.department !== filters.department) return false;
+        if (filters.class && timetable.class !== filters.class) return false;
+        if (filters.semester && timetable.semester !== filters.semester) return false;
+        return true;
+      });
+    } catch (error) {
+      console.error('Error getting filtered timetables:', error);
+      return [];
+    }
+  }
+
   async getTimetableByClass(instituteId: string, className: string, semester: string): Promise<Timetable | null> {
     try {
       const q = query(
         collection(db, 'timetables'),
         where('instituteId', '==', instituteId),
         where('class', '==', className),
-        where('semester', '==', semester),
-        orderBy('generatedAt', 'desc'),
-        limit(1)
+        where('semester', '==', semester)
       );
       const querySnapshot = await getDocs(q);
       
       if (!querySnapshot.empty) {
-        const doc = querySnapshot.docs[0];
-        return { id: doc.id, ...doc.data() } as Timetable;
+        // Convert and sort in memory to avoid composite index requirement
+        const timetables = querySnapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            ...data,
+            generatedAt: data.generatedAt?.toDate() || new Date(),
+            createdAt: data.createdAt?.toDate() || new Date()
+          } as Timetable;
+        });
+        
+        // Sort by generatedAt desc and return the most recent
+        timetables.sort((a, b) => b.generatedAt.getTime() - a.generatedAt.getTime());
+        return timetables[0];
       }
       return null;
     } catch (error) {
@@ -356,8 +418,13 @@ class FirestoreService {
     try {
       const docRef = await addDoc(collection(db, 'timetables'), {
         ...timetable,
-        generatedAt: new Date()
+        generatedAt: new Date(),
+        createdAt: new Date()
       });
+      
+      // Also save to session index for efficient conflict detection
+      await this.saveSessionIndex(docRef.id, timetable.entries, timetable.instituteId, timetable.department);
+      
       return docRef.id;
     } catch (error) {
       console.error('Error saving timetable:', error);
@@ -365,13 +432,166 @@ class FirestoreService {
     }
   }
 
+  // Session index operations for conflict detection
+  async saveSessionIndex(timetableId: string, entries: any[], instituteId: string, department: string): Promise<void> {
+    try {
+      const batch: Promise<void>[] = [];
+      
+      entries.forEach(entry => {
+        const sessionIndexEntry: Omit<SessionIndexEntry, 'id'> = {
+          instituteId,
+          department: entry.department || department, // Use entry department or fallback to timetable department
+          class: entry.class,
+          day: entry.day,
+          startMinutes: this.timeToMinutes(entry.startTime),
+          endMinutes: this.timeToMinutes(entry.endTime),
+          facultyId: entry.facultyId,
+          room: entry.room,
+          timetableId
+        };
+        
+        // Use setDoc for idempotent writes
+        const docId = `${timetableId}-${entry.id}`;
+        const docRef = doc(db, 'session_index', docId);
+        const promise = setDoc(docRef, { ...sessionIndexEntry, id: docId });
+        batch.push(promise);
+      });
+      
+      await Promise.all(batch);
+    } catch (error) {
+      console.error('Error saving session index:', error);
+    }
+  }
+
+  async getConflictingSessions(entry: {
+    instituteId: string;
+    facultyId: string;
+    room: string;
+    day: string;
+    startMinutes: number;
+    endMinutes: number;
+    class: string;
+  }): Promise<SessionIndexEntry[]> {
+    try {
+      const queries: Promise<any>[] = [];
+      
+      // Query for faculty conflicts (always needed)
+      queries.push(
+        getDocs(query(
+          collection(db, 'session_index'),
+          where('instituteId', '==', entry.instituteId),
+          where('day', '==', entry.day),
+          where('facultyId', '==', entry.facultyId)
+        ))
+      );
+      
+      // Query for room conflicts (only if room is specified)
+      if (entry.room && entry.room.trim()) {
+        queries.push(
+          getDocs(query(
+            collection(db, 'session_index'),
+            where('instituteId', '==', entry.instituteId),
+            where('day', '==', entry.day),
+            where('room', '==', entry.room)
+          ))
+        );
+      }
+      
+      const results = await Promise.all(queries);
+      const allSessions = new Map<string, SessionIndexEntry>();
+      
+      // Merge results from all queries
+      results.forEach(queryResult => {
+        queryResult.docs.forEach((doc: any) => {
+          const session = { id: doc.id, ...doc.data() } as SessionIndexEntry;
+          allSessions.set(doc.id, session);
+        });
+      });
+      
+      // Filter for overlapping sessions (excluding same class)
+      return Array.from(allSessions.values()).filter(session => {
+        const hasOverlap = entry.startMinutes < session.endMinutes && session.startMinutes < entry.endMinutes;
+        const differentClass = session.class !== entry.class;
+        
+        return hasOverlap && differentClass;
+      });
+    } catch (error) {
+      console.error('Error getting conflicting sessions:', error);
+      return [];
+    }
+  }
+
+  // Helper methods
+  private timeToMinutes(time: string): number {
+    const [hours, minutes] = time.split(':').map(Number);
+    return hours * 60 + minutes;
+  }
+
+  private minutesToTime(minutes: number): string {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+  }
+
   async updateTimetable(id: string, updates: Partial<Timetable>): Promise<void> {
     try {
       const docRef = doc(db, 'timetables', id);
       await updateDoc(docRef, updates);
+      
+      // If entries are updated, rebuild session index
+      if (updates.entries) {
+        let instituteId = updates.instituteId;
+        let department = updates.department;
+        
+        // Fetch existing timetable if instituteId or department not provided
+        if (!instituteId || !department) {
+          const existingTimetable = await this.getDocument('timetables', id);
+          if (existingTimetable) {
+            instituteId = instituteId || existingTimetable.instituteId;
+            department = department || existingTimetable.department;
+          }
+        }
+        
+        if (instituteId && department) {
+          await this.deleteSessionIndex(id);
+          await this.saveSessionIndex(id, updates.entries, instituteId, department);
+        }
+      }
     } catch (error) {
       console.error('Error updating timetable:', error);
       throw error;
+    }
+  }
+
+  async deleteTimetable(id: string): Promise<void> {
+    try {
+      // Delete session index entries first
+      await this.deleteSessionIndex(id);
+      
+      // Then delete the timetable document
+      await deleteDoc(doc(db, 'timetables', id));
+    } catch (error) {
+      console.error('Error deleting timetable:', error);
+      throw error;
+    }
+  }
+
+  async deleteSessionIndex(timetableId: string): Promise<void> {
+    try {
+      const q = query(
+        collection(db, 'session_index'),
+        where('timetableId', '==', timetableId)
+      );
+      const querySnapshot = await getDocs(q);
+      
+      const batch: Promise<void>[] = [];
+      querySnapshot.docs.forEach(doc => {
+        batch.push(deleteDoc(doc.ref));
+      });
+      
+      await Promise.all(batch);
+    } catch (error) {
+      console.error('Error deleting session index:', error);
     }
   }
 
@@ -491,18 +711,20 @@ class FirestoreService {
   // Statistics
   async getStatistics(instituteId: string) {
     try {
-      const [studentsSnapshot, facultySnapshot, coursesSnapshot, timetablesSnapshot] = await Promise.all([
+      const [studentsSnapshot, facultySnapshot, coursesSnapshot, timetablesSnapshot, classroomsSnapshot] = await Promise.all([
         getDocs(query(collection(db, 'students'), where('instituteId', '==', instituteId))),
         getDocs(query(collection(db, 'faculty'), where('instituteId', '==', instituteId))),
         getDocs(query(collection(db, 'courses'), where('instituteId', '==', instituteId))),
-        getDocs(query(collection(db, 'timetables'), where('instituteId', '==', instituteId)))
+        getDocs(query(collection(db, 'timetables'), where('instituteId', '==', instituteId))),
+        getDocs(query(collection(db, 'classrooms'), where('instituteId', '==', instituteId)))
       ]);
 
       return {
         students: studentsSnapshot.size,
         faculty: facultySnapshot.size,
         courses: coursesSnapshot.size,
-        timetables: timetablesSnapshot.size
+        timetables: timetablesSnapshot.size,
+        classrooms: classroomsSnapshot.size
       };
     } catch (error) {
       console.error('Error getting statistics:', error);

@@ -50,6 +50,15 @@ export interface Student {
   createdAt: Date;
 }
 
+export interface Classroom {
+  id: string;
+  name: string;
+  capacity: number;
+  type: 'lecture' | 'lab' | 'both';
+  location?: string;
+  instituteId: string;
+}
+
 export interface Course {
   id: string;
   name: string;
@@ -80,6 +89,17 @@ export interface Submission {
   feedback?: string;
 }
 
+export interface SessionInput {
+  id: string;
+  subjectId: string;
+  facultyId: string;
+  type: 'lecture' | 'lab';
+  durationMinutes: number;
+  classroomId?: string;
+  roomText?: string;
+  day?: string; // Optional - if not specified, will be distributed automatically
+}
+
 export interface TimetableEntry {
   id: string;
   subjectId: string;
@@ -87,11 +107,24 @@ export interface TimetableEntry {
   facultyId: string;
   facultyName: string;
   class: string;
+  department: string; // Added department field
   room: string;
   day: string;
   timeSlot: string;
   startTime: string;
   endTime: string;
+  type: 'lecture' | 'lab';
+  durationMinutes: number;
+}
+
+export interface TimetableConfig {
+  startTime: string;
+  endTime: string;
+  totalHours: number;
+  shortBreakDuration: number;
+  lunchBreakDuration: number;
+  lunchBreakStart: string;
+  sessionDuration: number;
 }
 
 export interface Timetable {
@@ -101,8 +134,11 @@ export interface Timetable {
   semester: string;
   academicYear: string;
   entries: TimetableEntry[];
+  sessions: SessionInput[]; // User-defined session inputs
+  config: TimetableConfig; // User-defined configuration
   conflicts: Conflict[];
   generatedAt: Date;
+  createdAt: Date; // Added for consistency
   instituteId: string;
 }
 
@@ -111,6 +147,20 @@ export interface Conflict {
   description: string;
   severity: 'high' | 'medium' | 'low';
   resolved: boolean;
+  sessionId?: string; // Reference to the session that has the conflict
+}
+
+export interface SessionIndexEntry {
+  id: string;
+  instituteId: string;
+  department: string;
+  class: string;
+  day: string;
+  startMinutes: number;
+  endMinutes: number;
+  facultyId: string;
+  room: string;
+  timetableId: string;
 }
 
 export interface User {
@@ -159,6 +209,7 @@ export interface FirestoreCollections {
   students: Student;
   courses: Course;
   timetables: Timetable;
+  classrooms: Classroom;
   users: User;
   activities: Activity;
   events: Event;
