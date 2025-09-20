@@ -20,7 +20,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { firestoreService } from '@/services/firestoreService';
-import { Student } from '@/types';
+import { Student, Department } from '@/types';
 import { 
   ArrowLeft, 
   Computer, 
@@ -31,20 +31,24 @@ import {
   MoreVertical,
   Edit,
   Trash2,
-  Users
+  Users,
+  Building2
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { DepartmentManager } from '@/components/department/DepartmentManager';
+import { generateClassesForDepartment, departmentIconsAndColors } from '@/utils/departments';
 
-const departments = [
-  { id: 'cse', name: 'Computer Science', icon: Computer, color: 'bg-blue-500' },
-  { id: 'ece', name: 'Electronics & Comm.', icon: Zap, color: 'bg-green-500' },
-  { id: 'mech', name: 'Mechanical Engg.', icon: Cog, color: 'bg-orange-500' },
-];
+// Helper function to get icon component from department
+const getDepartmentIcon = (department: Department) => {
+  // For now, map by colorClass since iconName is not consistently stored
+  // In future, this could be enhanced to use iconName if properly implemented
+  const iconData = departmentIconsAndColors.find(item => item.color === department.colorClass);
+  return iconData ? iconData.icon : Building2;
+};
 
-const classes = {
-  cse: ['CSE-A (1st Year)', 'CSE-B (1st Year)', 'CSE-A (2nd Year)', 'CSE-B (2nd Year)', 'CSE-A (3rd Year)', 'CSE-B (3rd Year)', 'CSE-A (4th Year)', 'CSE-B (4th Year)'],
-  ece: ['ECE-A (1st Year)', 'ECE-B (1st Year)', 'ECE-A (2nd Year)', 'ECE-B (2nd Year)', 'ECE-A (3rd Year)', 'ECE-B (3rd Year)', 'ECE-A (4th Year)', 'ECE-B (4th Year)'],
-  mech: ['MECH-A (1st Year)', 'MECH-B (1st Year)', 'MECH-A (2nd Year)', 'MECH-B (2nd Year)', 'MECH-A (3rd Year)', 'MECH-B (3rd Year)', 'MECH-A (4th Year)', 'MECH-B (4th Year)'],
+// Helper function to get color class
+const getDepartmentColor = (department: Department) => {
+  return department.colorClass;
 };
 
 const StudentManager: React.FC = () => {
@@ -53,9 +57,12 @@ const StudentManager: React.FC = () => {
   const [selectedDepartment, setSelectedDepartment] = useState<string | null>(null);
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [classes, setClasses] = useState<Record<string, string[]>>({});
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showDepartmentManager, setShowDepartmentManager] = useState(false);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [departmentStats, setDepartmentStats] = useState<Record<string, number>>({});
   const [formData, setFormData] = useState({
@@ -70,9 +77,16 @@ const StudentManager: React.FC = () => {
 
   useEffect(() => {
     if (institute) {
-      loadDepartmentStats();
+      loadDepartments();
     }
   }, [institute]);
+
+  useEffect(() => {
+    if (departments.length > 0) {
+      loadDepartmentStats();
+      generateClassesData();
+    }
+  }, [departments]);
 
   useEffect(() => {
     if (selectedDepartment && selectedClass && institute) {
@@ -80,14 +94,39 @@ const StudentManager: React.FC = () => {
     }
   }, [selectedDepartment, selectedClass, institute]);
 
+  const loadDepartments = async () => {
+    if (!institute) return;
+    
+    try {
+      const departmentList = await firestoreService.getDepartmentsByInstitute(institute.id);
+      setDepartments(departmentList);
+    } catch (error) {
+      console.error('Error loading departments:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load departments. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const generateClassesData = () => {
+    const classesData: Record<string, string[]> = {};
+    departments.forEach(dept => {
+      classesData[dept.id] = generateClassesForDepartment(dept.shortName || dept.name);
+    });
+    setClasses(classesData);
+  };
+
   const loadDepartmentStats = async () => {
     if (!institute) return;
     
     const stats: Record<string, number> = {};
     for (const dept of departments) {
       try {
-        // This is a simplified count - in real implementation, you'd count across all classes
-        const sampleClass = classes[dept.id as keyof typeof classes][0];
+        // Generate classes for this department dynamically instead of relying on classes state
+        const deptClasses = generateClassesForDepartment(dept.shortName || dept.name);
+        const sampleClass = deptClasses[0];
         const students = await firestoreService.getStudentsByClass(institute.id, dept.id, sampleClass);
         stats[dept.id] = students.length * 4; // Approximation for all years
       } catch (error) {
@@ -266,13 +305,26 @@ const StudentManager: React.FC = () => {
     return (
       <div className="p-4 sm:p-6 lg:p-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground mb-2">Student Manager</h1>
-          <p className="text-muted-foreground">Select a department to manage students</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-foreground mb-2">Student Manager</h1>
+              <p className="text-muted-foreground">Select a department to manage students</p>
+            </div>
+            <Button
+              onClick={() => setShowDepartmentManager(true)}
+              className="flex items-center gap-2"
+              data-testid="button-add-department"
+            >
+              <Plus className="h-4 w-4" />
+              Add Department
+            </Button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {departments.map((dept) => {
-            const Icon = dept.icon;
+            const Icon = getDepartmentIcon(dept);
+            const colorClass = getDepartmentColor(dept);
             const studentCount = departmentStats[dept.id] || 0;
             
             return (
@@ -283,8 +335,8 @@ const StudentManager: React.FC = () => {
               >
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between mb-4">
-                    <div className={`w-12 h-12 ${dept.color}/10 rounded-xl flex items-center justify-center`}>
-                      <Icon className={`h-6 w-6 text-${dept.color.split('-')[1]}-500`} />
+                    <div className={`w-12 h-12 ${colorClass}/10 rounded-xl flex items-center justify-center`}>
+                      <Icon className={`h-6 w-6 ${colorClass.replace('bg-', 'text-')}`} />
                     </div>
                     <span className="text-2xl font-bold text-foreground">{studentCount}</span>
                   </div>
@@ -302,7 +354,7 @@ const StudentManager: React.FC = () => {
   if (!selectedClass) {
     // Class Selection View
     const selectedDept = departments.find(d => d.id === selectedDepartment);
-    const Icon = selectedDept?.icon || Computer;
+    const Icon = selectedDept ? getDepartmentIcon(selectedDept) : Computer;
     
     return (
       <div className="p-4 sm:p-6 lg:p-8">
@@ -333,8 +385,8 @@ const StudentManager: React.FC = () => {
             >
               <CardContent className="p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <div className={`w-10 h-10 ${selectedDept?.color}/10 rounded-lg flex items-center justify-center`}>
-                    <Icon className={`h-5 w-5 text-${selectedDept?.color?.split('-')[1]}-500`} />
+                  <div className={`w-10 h-10 ${selectedDept ? getDepartmentColor(selectedDept) : 'bg-gray-500'}/10 rounded-lg flex items-center justify-center`}>
+                    <Icon className={`h-5 w-5 ${selectedDept ? getDepartmentColor(selectedDept).replace('bg-', 'text-') : 'text-gray-500'}`} />
                   </div>
                   <Badge variant="secondary">Active</Badge>
                 </div>
@@ -601,6 +653,36 @@ const StudentManager: React.FC = () => {
                 {loading ? 'Saving...' : editingStudent ? 'Update Student' : 'Add Student'}
               </Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Department Manager Modal */}
+      <Dialog 
+        open={showDepartmentManager} 
+        onOpenChange={(open) => {
+          setShowDepartmentManager(open);
+          if (!open) {
+            // Refresh departments when modal is closed
+            loadDepartments();
+          }
+        }}
+      >
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Building2 className="h-5 w-5" />
+              Department Management
+            </DialogTitle>
+          </DialogHeader>
+          <DepartmentManager />
+          <div className="flex justify-end pt-4">
+            <Button 
+              onClick={() => setShowDepartmentManager(false)}
+              data-testid="button-close-department-manager"
+            >
+              Done
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
