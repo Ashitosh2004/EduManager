@@ -17,6 +17,7 @@ import DepartmentManagerPage from '@/pages/department-manager';
 import TimetableGenerator from '@/pages/timetable-generator';
 import TimetableHistoryPage from '@/pages/timetable-history';
 import SettingsPage from '@/pages/settings';
+import ProfilePage from '@/pages/profile';
 import MorePage from '@/pages/more';
 
 interface AppShellProps {
@@ -56,6 +57,8 @@ export const AppShell: React.FC<AppShellProps> = ({ page = 'dashboard' }) => {
         return <TimetableHistoryPage />;
       case 'settings':
         return <SettingsPage />;
+      case 'profile':
+        return <ProfilePage />;
       case 'more':
         return <MorePage />;
       default:
