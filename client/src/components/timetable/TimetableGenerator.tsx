@@ -390,6 +390,30 @@ export const TimetableGenerator: React.FC<TimetableGeneratorProps> = ({ onBack }
       return;
     }
 
+    // Require session configuration
+    if (sessions.length === 0) {
+      toast({
+        title: "Sessions Required",
+        description: "Please add at least one session before generating the timetable. Use the 'Add Session' button to configure your classes.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate that all sessions have required fields
+    const incompleteSessions = sessions.filter(session => 
+      !session.subjectId || !session.facultyId
+    );
+    
+    if (incompleteSessions.length > 0) {
+      toast({
+        title: "Incomplete Sessions",
+        description: `${incompleteSessions.length} session(s) are missing required information. Please complete all sessions before generating.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       setLoading(true);
       
@@ -410,7 +434,7 @@ export const TimetableGenerator: React.FC<TimetableGeneratorProps> = ({ onBack }
         department: formData.department,
         semester: formData.semester,
         academicYear: '2025-26',
-        entries: sessions.length > 0 ? generateEntriesFromSessions() : generateDynamicEntries(),
+        entries: generateEntriesFromSessions(), // Always use sessions-based generation
         sessions,
         config,
         conflicts: [],
@@ -863,8 +887,8 @@ export const TimetableGenerator: React.FC<TimetableGeneratorProps> = ({ onBack }
               
               <Button 
                 onClick={handleGenerateTimetable}
-                disabled={loading || !formData.department || !formData.class}
-                className="w-full"
+                disabled={loading || !formData.department || !formData.class || sessions.length === 0}
+                className="w-full disabled:opacity-50"
                 data-testid="button-generate-timetable"
               >
                 {loading ? (
@@ -876,6 +900,7 @@ export const TimetableGenerator: React.FC<TimetableGeneratorProps> = ({ onBack }
                   <>
                     <Sparkles className="h-4 w-4 mr-2" />
                     Generate Timetable
+                    {sessions.length === 0 && <span className="ml-2 text-xs">(Add Sessions First)</span>}
                   </>
                 )}
               </Button>
