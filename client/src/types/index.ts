@@ -203,6 +203,16 @@ export interface Event {
   createdAt: Date;
 }
 
+export interface Department {
+  id: string;
+  name: string;
+  shortName?: string;
+  iconName: string;
+  colorClass: string;
+  instituteId: string;
+  createdAt: Date;
+}
+
 export interface FirestoreCollections {
   institutes: Institute;
   faculty: Faculty;
@@ -210,6 +220,7 @@ export interface FirestoreCollections {
   courses: Course;
   timetables: Timetable;
   classrooms: Classroom;
+  departments: Department;
   users: User;
   activities: Activity;
   events: Event;

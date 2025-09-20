@@ -34,6 +34,14 @@ const MorePage: React.FC = () => {
       primary: true
     },
     {
+      id: 'departments',
+      title: 'Department Manager',
+      description: 'Add and manage departments for your institute',
+      icon: Settings,
+      path: '/departments',
+      primary: true
+    },
+    {
       id: 'timetable',
       title: 'Generate Timetable',
       description: 'Create new timetables with custom sessions',
@@ -70,7 +78,7 @@ const MorePage: React.FC = () => {
       title: 'Settings',
       description: 'App preferences and configuration',
       icon: Settings,
-      action: () => console.log('Settings functionality coming soon'),
+      path: '/settings',
       secondary: true
     },
     {

@@ -19,6 +19,7 @@ import {
   Student, 
   Course, 
   Classroom,
+  Department,
   Timetable, 
   SessionIndexEntry,
   User,
@@ -704,6 +705,59 @@ class FirestoreService {
       await deleteDoc(doc(db, 'events', id));
     } catch (error) {
       console.error('Error deleting event:', error);
+      throw error;
+    }
+  }
+
+  // Department operations
+  async getDepartmentsByInstitute(instituteId: string): Promise<Department[]> {
+    try {
+      const q = query(
+        collection(db, 'departments'),
+        where('instituteId', '==', instituteId)
+      );
+      const querySnapshot = await getDocs(q);
+      const departments = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Department[];
+      
+      // Sort in memory instead of using Firestore orderBy to avoid composite index
+      return departments.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    } catch (error) {
+      console.error('Error getting departments:', error);
+      return [];
+    }
+  }
+
+  async createDepartment(department: Omit<Department, 'id'>): Promise<string> {
+    try {
+      const docRef = await addDoc(collection(db, 'departments'), {
+        ...department,
+        createdAt: new Date()
+      });
+      return docRef.id;
+    } catch (error) {
+      console.error('Error creating department:', error);
+      throw error;
+    }
+  }
+
+  async updateDepartment(id: string, updates: Partial<Department>): Promise<void> {
+    try {
+      const docRef = doc(db, 'departments', id);
+      await updateDoc(docRef, updates);
+    } catch (error) {
+      console.error('Error updating department:', error);
+      throw error;
+    }
+  }
+
+  async deleteDepartment(id: string): Promise<void> {
+    try {
+      await deleteDoc(doc(db, 'departments', id));
+    } catch (error) {
+      console.error('Error deleting department:', error);
       throw error;
     }
   }

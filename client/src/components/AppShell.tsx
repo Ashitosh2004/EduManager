@@ -13,8 +13,10 @@ import Dashboard from '@/pages/dashboard';
 import StudentManager from '@/pages/student-manager';
 import FacultyManager from '@/pages/faculty-manager';
 import CourseManager from '@/pages/course-manager';
+import DepartmentManagerPage from '@/pages/department-manager';
 import TimetableGenerator from '@/pages/timetable-generator';
 import TimetableHistoryPage from '@/pages/timetable-history';
+import SettingsPage from '@/pages/settings';
 import MorePage from '@/pages/more';
 
 interface AppShellProps {
@@ -46,10 +48,14 @@ export const AppShell: React.FC<AppShellProps> = ({ page = 'dashboard' }) => {
         return <FacultyManager />;
       case 'courses':
         return <CourseManager />;
+      case 'departments':
+        return <DepartmentManagerPage />;
       case 'timetable':
         return <TimetableGenerator />;
       case 'timetable-history':
         return <TimetableHistoryPage />;
+      case 'settings':
+        return <SettingsPage />;
       case 'more':
         return <MorePage />;
       default:
