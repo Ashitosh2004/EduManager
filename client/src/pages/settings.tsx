@@ -6,6 +6,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { firestoreService } from '@/services/firestoreService';
 import { 
   ArrowLeft,
   Bell,
@@ -51,6 +52,7 @@ const SettingsPage: React.FC = () => {
   const { user, institute } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [loadingSettings, setLoadingSettings] = useState(true);
   const [settings, setSettings] = useState<SettingsData>({
     notifications: {
       email: true,
@@ -75,11 +77,48 @@ const SettingsPage: React.FC = () => {
     },
   });
 
+  // Load user settings on component mount
+  useEffect(() => {
+    const loadUserSettings = async () => {
+      if (!user?.id) return;
+      
+      try {
+        setLoadingSettings(true);
+        const userSettings = await firestoreService.getUserSettings(user.id);
+        if (userSettings) {
+          setSettings(prev => ({
+            ...prev,
+            ...userSettings
+          }));
+        }
+      } catch (error) {
+        console.error('Error loading user settings:', error);
+        toast({
+          title: "Loading Error",
+          description: "Failed to load your settings. Using defaults.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoadingSettings(false);
+      }
+    };
+
+    loadUserSettings();
+  }, [user?.id, toast]);
+
   const handleSaveSettings = async () => {
+    if (!user?.id) {
+      toast({
+        title: "Error",
+        description: "User not authenticated. Please login and try again.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       setLoading(true);
-      // Here you would save settings to Firebase or your backend
-      // await firestoreService.updateUserSettings(user.id, settings);
+      await firestoreService.updateUserSettings(user.id, settings);
       
       toast({
         title: "Settings Saved",
@@ -104,13 +143,80 @@ const SettingsPage: React.FC = () => {
     });
   };
 
-  const handleDeleteAccount = () => {
-    toast({
-      title: "Account Deletion",
-      description: "Please contact your institute administrator to delete your account.",
-      variant: "destructive",
-    });
+  const handleDeleteAccount = async () => {
+    if (!user?.id) return;
+    
+    if (confirm("Are you sure you want to delete your account? This action cannot be undone.")) {
+      try {
+        setLoading(true);
+        // Delete user settings first
+        await firestoreService.deleteUserSettings(user.id);
+        
+        toast({
+          title: "Account Settings Cleared",
+          description: "Your settings have been cleared. Please contact your institute administrator for full account deletion.",
+          variant: "destructive",
+        });
+      } catch (error) {
+        console.error('Error deleting account settings:', error);
+        toast({
+          title: "Error",
+          description: "Failed to clear settings. Please contact support.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    }
   };
+
+  const handleResetSettings = async () => {
+    if (confirm("Are you sure you want to reset all settings to defaults? This cannot be undone.")) {
+      const defaultSettings: SettingsData = {
+        notifications: {
+          email: true,
+          push: true,
+          timetableUpdates: true,
+          systemAlerts: true,
+        },
+        display: {
+          theme: 'system',
+          language: 'en',
+          dateFormat: 'MM/DD/YYYY',
+          timeFormat: '12h',
+        },
+        privacy: {
+          profileVisibility: 'institute',
+          dataSharing: false,
+          analyticsOptIn: true,
+        },
+        backup: {
+          autoBackup: true,
+          backupFrequency: 'weekly',
+        },
+      };
+      
+      setSettings(defaultSettings);
+      
+      toast({
+        title: "Settings Reset",
+        description: "All settings have been reset to defaults. Click 'Save Settings' to apply.",
+      });
+    }
+  };
+
+  if (loadingSettings) {
+    return (
+      <div className="p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading your settings...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto">
@@ -489,12 +595,23 @@ const SettingsPage: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Save Settings */}
-        <div className="flex justify-end">
-          <Button onClick={handleSaveSettings} disabled={loading} data-testid="button-save-settings">
-            <Save className="h-4 w-4 mr-2" />
-            {loading ? 'Saving...' : 'Save Settings'}
+        {/* Action Buttons */}
+        <div className="flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0 space-x-0 sm:space-x-4">
+          <Button 
+            onClick={handleResetSettings} 
+            variant="outline" 
+            disabled={loading}
+            data-testid="button-reset-settings"
+          >
+            Reset to Defaults
           </Button>
+          
+          <div className="flex space-x-4">
+            <Button onClick={handleSaveSettings} disabled={loading} data-testid="button-save-settings">
+              <Save className="h-4 w-4 mr-2" />
+              {loading ? 'Saving...' : 'Save Settings'}
+            </Button>
+          </div>
         </div>
       </div>
     </div>

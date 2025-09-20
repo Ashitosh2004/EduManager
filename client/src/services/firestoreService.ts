@@ -54,6 +54,45 @@ class FirestoreService {
     }
   }
 
+  // User Settings operations
+  async getUserSettings(userId: string): Promise<any | null> {
+    try {
+      const settingsRef = doc(db, 'users', userId, 'settings', 'preferences');
+      const settingsSnap = await getDoc(settingsRef);
+      
+      if (settingsSnap.exists()) {
+        return settingsSnap.data();
+      }
+      return null;
+    } catch (error) {
+      console.error('Error getting user settings:', error);
+      throw error;
+    }
+  }
+
+  async updateUserSettings(userId: string, settings: any): Promise<void> {
+    try {
+      const settingsRef = doc(db, 'users', userId, 'settings', 'preferences');
+      await setDoc(settingsRef, {
+        ...settings,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+    } catch (error) {
+      console.error('Error updating user settings:', error);
+      throw error;
+    }
+  }
+
+  async deleteUserSettings(userId: string): Promise<void> {
+    try {
+      const settingsRef = doc(db, 'users', userId, 'settings', 'preferences');
+      await deleteDoc(settingsRef);
+    } catch (error) {
+      console.error('Error deleting user settings:', error);
+      throw error;
+    }
+  }
+
   // Institute operations
   async getInstitutes(): Promise<Institute[]> {
     try {
