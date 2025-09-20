@@ -182,9 +182,35 @@ const CourseManager: React.FC = () => {
     try {
       setLoading(true);
       
+      // Normalize course code for comparison
+      const normalizedCode = formData.code.trim().toLowerCase().replace(/\s+/g, '');
+      
+      // Check for duplicate course code in the same department
+      const existingCourses = await firestoreService.getCoursesByDepartment(
+        institute.id, 
+        selectedDepartment
+      );
+      
+      const duplicateCourse = existingCourses.find(
+        course => {
+          const existingNormalizedCode = course.code.trim().toLowerCase().replace(/\s+/g, '');
+          return existingNormalizedCode === normalizedCode && 
+                 (!editingCourse || course.id !== editingCourse.id);
+        }
+      );
+      
+      if (duplicateCourse) {
+        toast({
+          title: "Duplicate Course",
+          description: `A course with code "${formData.code}" already exists in this department.`,
+          variant: "destructive",
+        });
+        return;
+      }
+      
       const courseData = {
         name: formData.name,
-        code: formData.code,
+        code: formData.code.trim(),
         department: selectedDepartment,
         credits: formData.credits,
         semester: formData.semester,
@@ -192,7 +218,7 @@ const CourseManager: React.FC = () => {
         facultyId: formData.facultyId,
         assignments: [],
         instituteId: institute.id,
-        createdAt: new Date()
+        createdAt: editingCourse ? editingCourse.createdAt : new Date() // Preserve createdAt for existing courses
       };
 
       if (editingCourse) {
