@@ -81,9 +81,17 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({
   const normalizeTime = (timeStr: string): string => {
     if (!timeStr) return '';
     // Handle different time formats
-    const time24 = timeStr.includes('AM') || timeStr.includes('PM') 
+    let time24 = timeStr.includes('AM') || timeStr.includes('PM') 
       ? convert12to24(timeStr) 
       : timeStr;
+    
+    // Ensure HH:MM format by padding with leading zero if needed
+    const timeMatch = time24.match(/^(\d{1,2}):(\d{2})$/);
+    if (timeMatch) {
+      const [, hours, minutes] = timeMatch;
+      time24 = `${hours.padStart(2, '0')}:${minutes}`;
+    }
+    
     return time24.substring(0, 5); // Get HH:MM format
   };
 
@@ -99,32 +107,56 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({
   };
 
   return (
-    <div className={`bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-6 rounded-lg shadow-lg ${className}`}>
-      {/* Professional Header */}
-      <div className="mb-8 text-center space-y-3">
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-md">
-          <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-2">
+    <div className={`bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 p-8 rounded-2xl shadow-2xl ${className}`}>
+      {/* Enhanced Professional Header */}
+      <div className="mb-10 text-center space-y-4">
+        <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-2xl p-8 shadow-lg border border-white/20 dark:border-slate-700/50">
+          <div className="flex items-center justify-center mb-4">
+            <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
+              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </div>
+          </div>
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 dark:from-white dark:to-slate-200 bg-clip-text text-transparent mb-3">
             {classValue?.toUpperCase() || `${department.toUpperCase()}`}
           </h1>
-          <div className="flex justify-between items-center text-sm text-gray-600 dark:text-gray-300">
-            <span className="font-medium bg-blue-100 dark:bg-blue-900 px-3 py-1 rounded-full">Academic Year-{academicYear}</span>
-            {crNumber && <span className="font-medium bg-green-100 dark:bg-green-900 px-3 py-1 rounded-full">CR {crNumber}</span>}
-            <span className="font-medium bg-purple-100 dark:bg-purple-900 px-3 py-1 rounded-full">{semester}</span>
+          <p className="text-slate-600 dark:text-slate-300 font-medium mb-6">Weekly Schedule Overview</p>
+          <div className="flex flex-wrap justify-center items-center gap-3 text-sm">
+            <span className="font-semibold bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-2 rounded-full shadow-md">
+              Academic Year {academicYear}
+            </span>
+            {crNumber && (
+              <span className="font-semibold bg-gradient-to-r from-emerald-500 to-emerald-600 text-white px-4 py-2 rounded-full shadow-md">
+                CR {crNumber}
+              </span>
+            )}
+            <span className="font-semibold bg-gradient-to-r from-purple-500 to-purple-600 text-white px-4 py-2 rounded-full shadow-md">
+              {semester}
+            </span>
           </div>
         </div>
       </div>
 
-      {/* Timetable Grid */}
-      <div className="overflow-x-auto bg-white dark:bg-gray-800 rounded-lg shadow-xl">
+      {/* Enhanced Timetable Grid */}
+      <div className="overflow-x-auto bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-2xl shadow-2xl border border-white/20 dark:border-slate-700/50">
         <table className="w-full border-collapse">
           <thead>
-            <tr className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
-              <th className="border border-white/20 p-4 text-center font-bold min-w-[80px] rounded-tl-lg">
-                Time
+            <tr className="bg-gradient-to-r from-slate-700 via-slate-800 to-slate-900 text-white">
+              <th className="border-0 p-5 text-center font-bold min-w-[100px] rounded-tl-2xl">
+                <div className="flex items-center justify-center space-x-2">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>Time</span>
+                </div>
               </th>
               {days.map((day, index) => (
-                <th key={day} className={`border border-white/20 p-4 text-center font-bold min-w-[140px] ${index === days.length - 1 ? 'rounded-tr-lg' : ''}`}>
-                  {day}
+                <th key={day} className={`border-0 p-5 text-center font-bold min-w-[160px] ${index === days.length - 1 ? 'rounded-tr-2xl' : ''}`}>
+                  <div className="flex flex-col items-center space-y-1">
+                    <span className="text-lg">{day}</span>
+                    <div className="w-8 h-0.5 bg-white/50 rounded-full"></div>
+                  </div>
                 </th>
               ))}
             </tr>
@@ -133,16 +165,28 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({
             {timeSlots.map((slot, index) => {
               if (slot.isBreak) {
                 return (
-                  <tr key={slot.time} className="bg-gradient-to-r from-orange-100 to-yellow-100 dark:from-orange-900/30 dark:to-yellow-900/30">
-                    <td className="border border-gray-200 dark:border-gray-700 p-4 text-center font-bold text-orange-700 dark:text-orange-300">
-                      {slot.breakLabel}
-                    </td>
-                    <td colSpan={5} className="border border-gray-200 dark:border-gray-700 p-4 text-center font-bold text-orange-700 dark:text-orange-300">
-                      <div className="flex items-center justify-center space-x-2">
-                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                  <tr key={slot.time} className="bg-gradient-to-r from-amber-50 via-orange-50 to-yellow-50 dark:from-amber-900/20 dark:via-orange-900/20 dark:to-yellow-900/20">
+                    <td className="border-0 p-4 text-center font-bold">
+                      <div className="flex items-center justify-center space-x-2 text-amber-700 dark:text-amber-300">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
-                        <span>{slot.breakLabel}</span>
+                        <span className="text-sm">Break</span>
+                      </div>
+                    </td>
+                    <td colSpan={5} className="border-0 p-4 text-center">
+                      <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl py-3 px-6 shadow-lg">
+                        <div className="flex items-center justify-center space-x-3">
+                          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                          </svg>
+                          <span className="font-bold text-lg">{slot.breakLabel}</span>
+                          <div className="flex space-x-1">
+                            <div className="w-2 h-2 bg-white/50 rounded-full animate-pulse"></div>
+                            <div className="w-2 h-2 bg-white/50 rounded-full animate-pulse delay-75"></div>
+                            <div className="w-2 h-2 bg-white/50 rounded-full animate-pulse delay-150"></div>
+                          </div>
+                        </div>
                       </div>
                     </td>
                   </tr>
@@ -150,9 +194,12 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({
               }
 
               return (
-                <tr key={slot.time} className="hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors duration-200">
-                  <td className="border border-gray-200 dark:border-gray-700 p-4 text-center font-bold text-gray-700 dark:text-gray-300 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700">
-                    {slot.label}
+                <tr key={slot.time} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/50 transition-all duration-300 group">
+                  <td className="border-0 p-5 text-center font-bold bg-gradient-to-r from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-600">
+                    <div className="flex flex-col items-center space-y-1">
+                      <span className="text-lg font-bold text-slate-700 dark:text-slate-200">{slot.label}</span>
+                      <div className="w-6 h-0.5 bg-slate-400 dark:bg-slate-500 rounded-full group-hover:bg-blue-500 transition-colors duration-300"></div>
+                    </div>
                   </td>
                   {days.map(day => {
                     // Find all entries for this day and time slot
@@ -164,21 +211,51 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({
 
                     if (dayEntries.length === 0) {
                       return (
-                        <td key={day} className="border border-gray-200 dark:border-gray-700 p-4 text-center text-gray-400 dark:text-gray-500">
-                          <div className="flex items-center justify-center h-16">
-                            <span className="text-lg opacity-50">-</span>
+                        <td key={day} className="border-0 p-4 text-center">
+                          <div className="flex items-center justify-center h-20 group-hover:bg-slate-100/50 dark:group-hover:bg-slate-600/50 rounded-xl transition-all duration-300">
+                            <div className="text-slate-300 dark:text-slate-600 text-2xl font-light">
+                              <svg className="w-8 h-8 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20 12H4" />
+                              </svg>
+                            </div>
                           </div>
                         </td>
                       );
                     }
 
+                    // Color schemes for different types of sessions
+                    const getSessionColors = (entry: TimetableEntry, index: number) => {
+                      const colorSchemes = [
+                        'from-blue-500 via-blue-600 to-indigo-600',
+                        'from-purple-500 via-purple-600 to-pink-600', 
+                        'from-emerald-500 via-emerald-600 to-teal-600',
+                        'from-orange-500 via-orange-600 to-red-600',
+                        'from-violet-500 via-violet-600 to-purple-600',
+                        'from-cyan-500 via-cyan-600 to-blue-600'
+                      ];
+                      return colorSchemes[index % colorSchemes.length];
+                    };
+
                     return (
-                      <td key={day} className="border border-gray-200 dark:border-gray-700 p-2">
-                        <div className="space-y-1">
+                      <td key={day} className="border-0 p-3">
+                        <div className="space-y-2">
                           {dayEntries.map((entry, index) => (
-                            <div key={index} className={`bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg p-3 shadow-md hover:shadow-lg transform hover:scale-105 transition-all duration-200 ${dayEntries.length > 1 ? 'mb-1' : ''}`}>
-                              <div className="text-sm font-bold">{formatCellContent(entry)}</div>
-                              <div className="text-xs opacity-90 mt-1">{entry.subjectName}</div>
+                            <div key={index} className={`bg-gradient-to-br ${getSessionColors(entry, index)} text-white rounded-xl p-4 shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-300 group/card ${dayEntries.length > 1 ? 'mb-2' : ''}`}>
+                              <div className="flex items-start justify-between mb-2">
+                                <div className="text-sm font-bold tracking-wide">{formatCellContent(entry)}</div>
+                                <div className="w-2 h-2 bg-white/40 rounded-full group-hover/card:bg-white/60 transition-colors"></div>
+                              </div>
+                              <div className="text-xs opacity-90 font-medium mb-1">{entry.subjectName}</div>
+                              <div className="flex items-center justify-between text-xs opacity-75">
+                                <span>{entry.facultyName}</span>
+                                <div className="flex items-center space-x-1">
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                  </svg>
+                                  <span>{entry.room}</span>
+                                </div>
+                              </div>
                             </div>
                           ))}
                         </div>
@@ -192,21 +269,69 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({
         </table>
       </div>
       
-      {/* Footer with additional info */}
-      <div className="mt-6 bg-white dark:bg-gray-800 rounded-lg p-4 shadow-md">
-        <div className="flex justify-between items-center text-sm text-gray-600 dark:text-gray-300">
-          <span className="flex items-center space-x-2">
-            <svg className="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
-            </svg>
-            <span>Generated Timetable</span>
-          </span>
-          <span className="flex items-center space-x-2">
-            <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-            </svg>
-            <span>Conflict-free Schedule</span>
-          </span>
+      {/* Enhanced Footer with Statistics */}
+      <div className="mt-8 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20 dark:border-slate-700/50">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Schedule Status */}
+          <div className="flex items-center justify-center md:justify-start space-x-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg">
+              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <div>
+              <p className="font-bold text-slate-700 dark:text-slate-200">Conflict-Free</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">Optimized Schedule</p>
+            </div>
+          </div>
+
+          {/* Generation Info */}
+          <div className="flex items-center justify-center space-x-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </div>
+            <div>
+              <p className="font-bold text-slate-700 dark:text-slate-200">AI Generated</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">Smart Allocation</p>
+            </div>
+          </div>
+
+          {/* Export Options */}
+          <div className="flex items-center justify-center md:justify-end space-x-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center shadow-lg">
+              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <div>
+              <p className="font-bold text-slate-700 dark:text-slate-200">Export Ready</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">PDF & Excel</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Additional Stats */}
+        <div className="mt-6 pt-6 border-t border-slate-200 dark:border-slate-700">
+          <div className="flex flex-wrap justify-center gap-6 text-sm text-slate-600 dark:text-slate-400">
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+              <span>Lectures</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
+              <span>Practicals</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 bg-emerald-500 rounded-full"></div>
+              <span>Tutorials</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
+              <span>Breaks</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
