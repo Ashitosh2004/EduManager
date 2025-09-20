@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { TopAppBar } from '@/components/layout/TopAppBar';
 import { NavigationRail } from '@/components/layout/NavigationRail';
 import { BottomNavigation } from '@/components/layout/BottomNavigation';
-import { FloatingActionButton } from '@/components/layout/FloatingActionButton';
 import { InstituteSelectionModal } from '@/components/modals/InstituteSelectionModal';
 import { AuthScreen } from '@/components/auth/AuthScreen';
 import { useAuth } from '@/contexts/AuthContext';
