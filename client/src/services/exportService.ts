@@ -15,17 +15,45 @@ class ExportService {
    */
   async exportTimetableToPDF(timetable: Timetable): Promise<void> {
     const doc = new jsPDF('landscape');
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
     
-    // Professional header matching TimetableGrid format
-    doc.setFontSize(20);
+    // Professional header with enhanced design
+    doc.setFillColor(41, 128, 185); // Professional blue
+    doc.rect(0, 0, pageWidth, 50, 'F');
+    
+    // Institution title
+    doc.setFontSize(24);
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.text('TIMETABLE', pageWidth / 2, 20, { align: 'center' });
+    
+    // Class/Department info
+    doc.setFontSize(16);
     const titleText = timetable.class?.toUpperCase() || timetable.department.toUpperCase();
-    doc.text(titleText, 20, 20);
+    doc.text(titleText, pageWidth / 2, 35, { align: 'center' });
     
-    // Add academic info in horizontal layout
-    doc.setFontSize(10);
-    doc.text(`Academic Year-${timetable.academicYear}`, 20, 35);
-    doc.text(`${timetable.semester}`, 150, 35);
-    doc.text(`Generated: ${new Date(timetable.generatedAt).toLocaleDateString()}`, 220, 35);
+    // Academic information with better layout
+    doc.setFontSize(11);
+    doc.setTextColor(0, 0, 0);
+    doc.setFont('helvetica', 'normal');
+    const academicInfo = [
+      `Academic Year: ${timetable.academicYear}`,
+      `Semester: ${timetable.semester}`,
+      `Generated: ${new Date(timetable.generatedAt).toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      })}`
+    ];
+    
+    let yPos = 65;
+    academicInfo.forEach((info, index) => {
+      const xPos = 20 + (index * 90);
+      doc.text(info, xPos, yPos);
+    });
 
     // Fixed university timetable time slots matching TimetableGrid
     const timeSlots = [
@@ -52,8 +80,8 @@ class ExportService {
     // Data rows with TimetableGrid formatting
     timeSlots.forEach(slot => {
       if (slot.isBreak) {
-        // Break row - span across all days
-        const breakRow = [slot.label, slot.label, slot.label, slot.label, slot.label, slot.label];
+        // Break row - will be styled to visually span across all days
+        const breakRow = [slot.label, '', '', '', '', ''];
         tableData.push(breakRow);
       } else {
         const row = [slot.label];
@@ -79,72 +107,150 @@ class ExportService {
       }
     });
 
-    // Add table with professional university styling
+    // Add table with enhanced professional styling
     doc.autoTable({
       head: [header],
       body: tableData.slice(1),
-      startY: 50,
+      startY: 80,
       styles: {
-        fontSize: 9,
-        cellPadding: 4,
-        lineWidth: 0.5,
-        lineColor: [0, 0, 0]
+        fontSize: 10,
+        cellPadding: 6,
+        lineWidth: 0.8,
+        lineColor: [52, 73, 94],
+        fontStyle: 'normal'
       },
       headStyles: {
-        fillColor: [41, 128, 185],
-        textColor: 255,
+        fillColor: [52, 73, 94],
+        textColor: [255, 255, 255],
         fontStyle: 'bold',
-        halign: 'center'
+        halign: 'center',
+        fontSize: 11
       },
       columnStyles: {
-        0: { halign: 'center', fillColor: [236, 240, 241] }, // Time column
-        1: { halign: 'center' },
-        2: { halign: 'center' },
-        3: { halign: 'center' },
-        4: { halign: 'center' },
-        5: { halign: 'center' }
+        0: { 
+          halign: 'center', 
+          fillColor: [236, 240, 241],
+          fontStyle: 'bold',
+          textColor: [52, 73, 94]
+        }, // Time column
+        1: { halign: 'center', minCellWidth: 35 },
+        2: { halign: 'center', minCellWidth: 35 },
+        3: { halign: 'center', minCellWidth: 35 },
+        4: { halign: 'center', minCellWidth: 35 },
+        5: { halign: 'center', minCellWidth: 35 }
+      },
+      alternateRowStyles: {
+        fillColor: [248, 249, 250]
       },
       didParseCell: function(data: any) {
-        // Style break rows
+        // Style break rows with enhanced colors
         if (data.cell.raw.includes('Break')) {
-          data.cell.styles.fillColor = [149, 165, 166];
-          data.cell.styles.textColor = 255;
+          data.cell.styles.fillColor = [230, 126, 34];
+          data.cell.styles.textColor = [255, 255, 255];
           data.cell.styles.fontStyle = 'bold';
           data.cell.styles.halign = 'center';
+          data.cell.styles.fontSize = 11;
+        }
+        
+        // Add subtle borders for better definition
+        data.cell.styles.cellPadding = { top: 6, right: 4, bottom: 6, left: 4 };
+        
+        // Enhance text readability for non-empty cells
+        if (data.cell.raw !== '-' && !data.cell.raw.includes('Break')) {
+          data.cell.styles.textColor = [33, 37, 41];
+          data.cell.styles.fontSize = 9;
         }
       }
     });
 
-    // Add conflicts if any
+    // Add conflicts section with enhanced styling
     if (timetable.conflicts.length > 0) {
-      const finalY = (doc as any).lastAutoTable.finalY + 20;
-      doc.setFontSize(16);
-      doc.text('Conflicts:', 20, finalY);
+      const finalY = (doc as any).lastAutoTable.finalY + 25;
+      
+      // Conflicts header with warning styling
+      doc.setFillColor(231, 76, 60);
+      doc.rect(20, finalY - 5, pageWidth - 40, 20, 'F');
+      doc.setFontSize(14);
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold');
+      doc.text('WARNING: CONFLICTS DETECTED', 25, finalY + 7);
       
       const conflictData = timetable.conflicts.map((conflict, index) => [
         index + 1,
-        conflict.type,
-        conflict.severity,
+        conflict.type.toUpperCase(),
+        conflict.severity.toUpperCase(),
         conflict.description
       ]);
 
       doc.autoTable({
         head: [['#', 'Type', 'Severity', 'Description']],
         body: conflictData,
-        startY: finalY + 10,
+        startY: finalY + 20,
         styles: {
-          fontSize: 8,
-          cellPadding: 3
+          fontSize: 9,
+          cellPadding: 4,
+          lineWidth: 0.5,
+          lineColor: [189, 195, 199]
         },
         headStyles: {
-          fillColor: [244, 67, 54],
-          textColor: 255
+          fillColor: [231, 76, 60],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+          fontSize: 10
+        },
+        columnStyles: {
+          0: { halign: 'center', cellWidth: 15 },
+          1: { halign: 'center', cellWidth: 25 },
+          2: { halign: 'center', cellWidth: 25 },
+          3: { halign: 'left' }
+        },
+        didParseCell: function(data: any) {
+          // Color code severity levels
+          if (data.column.index === 2) { // Severity column
+            const severity = data.cell.raw ? data.cell.raw.toString().toLowerCase() : 'low';
+            if (severity === 'high') {
+              data.cell.styles.fillColor = [231, 76, 60];
+              data.cell.styles.textColor = [255, 255, 255];
+            } else if (severity === 'medium') {
+              data.cell.styles.fillColor = [243, 156, 18];
+              data.cell.styles.textColor = [255, 255, 255];
+            } else {
+              data.cell.styles.fillColor = [52, 152, 219];
+              data.cell.styles.textColor = [255, 255, 255];
+            }
+            data.cell.styles.fontStyle = 'bold';
+          }
         }
       });
     }
 
-    // Save the PDF
-    doc.save(`timetable_${timetable.class}_${timetable.semester}.pdf`);
+    // Add professional footer with dynamic pagination
+    const totalPages = doc.getNumberOfPages();
+    
+    // Add footer to all pages
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      const footerY = pageHeight - 20;
+      
+      doc.setDrawColor(52, 73, 94);
+      doc.line(20, footerY - 5, pageWidth - 20, footerY - 5);
+      
+      doc.setFontSize(8);
+      doc.setTextColor(127, 140, 141);
+      doc.setFont('helvetica', 'normal');
+      
+      const footerLeft = `Generated by Timetable Management System`;
+      const footerCenter = `Page ${i} of ${totalPages}`;
+      const footerRight = `${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`;
+      
+      doc.text(footerLeft, 20, footerY);
+      doc.text(footerCenter, pageWidth / 2, footerY, { align: 'center' });
+      doc.text(footerRight, pageWidth - 20, footerY, { align: 'right' });
+    }
+
+    // Save the PDF with better filename
+    const filename = `Timetable_${timetable.class || timetable.department}_${timetable.semester}_${new Date().toISOString().split('T')[0]}.pdf`;
+    doc.save(filename);
   }
 
   /**
@@ -358,7 +464,6 @@ class ExportService {
   private normalizeTime(timeStr: string): string {
     if (!timeStr) return '';
     
-    // Handle different time formats and normalize to HH:MM
     const time = timeStr.trim();
     
     // If already in HH:MM format, return as-is
@@ -366,7 +471,33 @@ class ExportService {
       return time;
     }
     
-    // Handle other formats if needed
+    // Handle single digit hours like "9:00" -> "09:00"
+    if (/^\d:\d{2}$/.test(time)) {
+      return `0${time}`;
+    }
+    
+    // Handle AM/PM formats
+    const ampmMatch = time.match(/^(\d{1,2}):?(\d{2})?\s*(AM|PM)$/i);
+    if (ampmMatch) {
+      let hours = parseInt(ampmMatch[1]);
+      const minutes = ampmMatch[2] || '00';
+      const period = ampmMatch[3].toUpperCase();
+      
+      if (period === 'PM' && hours !== 12) hours += 12;
+      if (period === 'AM' && hours === 12) hours = 0;
+      
+      return `${hours.toString().padStart(2, '0')}:${minutes}`;
+    }
+    
+    // Handle single digit hours without minutes like "9" -> "09:00"
+    if (/^\d{1,2}$/.test(time)) {
+      const hours = parseInt(time);
+      if (hours >= 0 && hours <= 23) {
+        return `${hours.toString().padStart(2, '0')}:00`;
+      }
+    }
+    
+    // Return original if no pattern matches
     return time;
   }
 
