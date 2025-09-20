@@ -2,6 +2,25 @@ import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult, signInWithEmailAndPassword, signOut, User } from "firebase/auth";
 import { getFirestore, connectFirestoreEmulator } from "firebase/firestore";
 
+// Validate Firebase configuration
+const validateFirebaseConfig = () => {
+  const requiredEnvVars = [
+    'VITE_FIREBASE_API_KEY',
+    'VITE_FIREBASE_PROJECT_ID', 
+    'VITE_FIREBASE_APP_ID'
+  ];
+  
+  const missing = requiredEnvVars.filter(varName => !import.meta.env[varName]);
+  
+  if (missing.length > 0) {
+    console.error('Missing Firebase environment variables:', missing);
+    throw new Error(`Missing required Firebase environment variables: ${missing.join(', ')}`);
+  }
+};
+
+// Validate before initializing
+validateFirebaseConfig();
+
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: `${import.meta.env.VITE_FIREBASE_PROJECT_ID}.firebaseapp.com`,
@@ -10,8 +29,15 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+// Initialize Firebase with error handling
+let app;
+try {
+  app = initializeApp(firebaseConfig);
+  console.log('Firebase initialized successfully');
+} catch (error) {
+  console.error('Failed to initialize Firebase:', error);
+  throw error;
+}
 
 // Initialize Firebase Auth
 export const auth = getAuth(app);
