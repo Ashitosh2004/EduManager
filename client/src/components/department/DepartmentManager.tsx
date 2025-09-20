@@ -88,8 +88,13 @@ export const DepartmentManager: React.FC = () => {
   };
 
   const handleEditDepartment = (department: Department) => {
-    // Find the icon and color index from the available options
+    // Find the icon index by matching the icon name or fallback to color match
     const iconIndex = departmentIconsAndColors.findIndex(
+      item => item.icon.name === department.iconName || item.color === department.colorClass
+    );
+    
+    // Find the color index separately by matching the color class
+    const colorIndex = departmentIconsAndColors.findIndex(
       item => item.color === department.colorClass
     );
     
@@ -97,7 +102,7 @@ export const DepartmentManager: React.FC = () => {
       name: department.name,
       shortName: department.shortName || '',
       iconIndex: iconIndex >= 0 ? iconIndex : 0,
-      colorIndex: iconIndex >= 0 ? iconIndex : 0
+      colorIndex: colorIndex >= 0 ? colorIndex : 0
     });
     setEditingDepartment(department);
     setShowAddModal(true);
@@ -416,8 +421,8 @@ export const DepartmentManager: React.FC = () => {
                       return (
                         <SelectItem key={index} value={index.toString()}>
                           <div className="flex items-center space-x-2">
-                            <div className={`w-6 h-6 ${item.color} rounded`}></div>
-                            <span className="capitalize">{item.color.replace('bg-', '').replace('-500', '')}</span>
+                            <div className={`w-6 h-6 ${item.color} rounded-md shadow-sm border border-gray-200 dark:border-gray-700`}></div>
+                            <span className="capitalize">{item.color.replace('bg-', '').replace('-500', '').replace('-', ' ')}</span>
                           </div>
                         </SelectItem>
                       );

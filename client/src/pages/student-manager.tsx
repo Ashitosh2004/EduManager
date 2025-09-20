@@ -40,8 +40,13 @@ import { generateClassesForDepartment, departmentIconsAndColors } from '@/utils/
 
 // Helper function to get icon component from department
 const getDepartmentIcon = (department: Department) => {
-  // For now, map by colorClass since iconName is not consistently stored
-  // In future, this could be enhanced to use iconName if properly implemented
+  // First try to use the saved iconName
+  if (department.iconName) {
+    const iconData = departmentIconsAndColors.find(item => item.icon.name === department.iconName);
+    if (iconData) return iconData.icon;
+  }
+  
+  // Fallback to finding by colorClass
   const iconData = departmentIconsAndColors.find(item => item.color === department.colorClass);
   return iconData ? iconData.icon : Building2;
 };
@@ -335,8 +340,8 @@ const StudentManager: React.FC = () => {
               >
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between mb-4">
-                    <div className={`w-12 h-12 ${colorClass}/10 rounded-xl flex items-center justify-center`}>
-                      <Icon className={`h-6 w-6 ${colorClass.replace('bg-', 'text-')}`} />
+                    <div className={`w-12 h-12 ${colorClass} rounded-xl flex items-center justify-center`}>
+                      <Icon className="h-6 w-6 text-white" />
                     </div>
                     <span className="text-2xl font-bold text-foreground">{studentCount}</span>
                   </div>
@@ -662,10 +667,6 @@ const StudentManager: React.FC = () => {
         open={showDepartmentManager} 
         onOpenChange={(open) => {
           setShowDepartmentManager(open);
-          if (!open) {
-            // Refresh departments when modal is closed
-            loadDepartments();
-          }
         }}
       >
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
@@ -678,7 +679,11 @@ const StudentManager: React.FC = () => {
           <DepartmentManager />
           <div className="flex justify-end pt-4">
             <Button 
-              onClick={() => setShowDepartmentManager(false)}
+              onClick={() => {
+                setShowDepartmentManager(false);
+                // Force reload departments to reflect any changes
+                loadDepartments();
+              }}
               data-testid="button-close-department-manager"
             >
               Done
