@@ -20,7 +20,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { firestoreService } from '@/services/firestoreService';
-import { Course, Faculty } from '@/types';
+import { Course, Faculty, Department } from '@/types';
 import { 
   ArrowLeft, 
   Computer, 
@@ -33,15 +33,23 @@ import {
   Trash2,
   BookOpen,
   Award,
-  User
+  User,
+  Building2
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { DepartmentManager } from '@/components/department/DepartmentManager';
+import { departmentIconsAndColors } from '@/utils/departments';
 
-const departments = [
-  { id: 'cse', name: 'Computer Science', icon: Computer, color: 'bg-blue-500' },
-  { id: 'ece', name: 'Electronics & Comm.', icon: Zap, color: 'bg-green-500' },
-  { id: 'mech', name: 'Mechanical Engg.', icon: Cog, color: 'bg-orange-500' },
-];
+// Helper function to get icon component from department
+const getDepartmentIcon = (department: Department) => {
+  const iconData = departmentIconsAndColors.find(item => item.color === department.colorClass);
+  return iconData ? iconData.icon : Building2;
+};
+
+// Helper function to get color class
+const getDepartmentColor = (department: Department) => {
+  return department.colorClass;
+};
 
 const CourseManager: React.FC = () => {
   const { institute } = useAuth();
@@ -49,9 +57,11 @@ const CourseManager: React.FC = () => {
   const [selectedDepartment, setSelectedDepartment] = useState<string | null>(null);
   const [courses, setCourses] = useState<Course[]>([]);
   const [faculty, setFaculty] = useState<Faculty[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showDepartmentManager, setShowDepartmentManager] = useState(false);
   const [editingCourse, setEditingCourse] = useState<Course | null>(null);
   const [departmentStats, setDepartmentStats] = useState<Record<string, number>>({});
   const [formData, setFormData] = useState({
@@ -65,9 +75,15 @@ const CourseManager: React.FC = () => {
 
   useEffect(() => {
     if (institute) {
-      loadDepartmentStats();
+      loadDepartments();
     }
   }, [institute]);
+
+  useEffect(() => {
+    if (departments.length > 0) {
+      loadDepartmentStats();
+    }
+  }, [departments]);
 
   useEffect(() => {
     if (selectedDepartment && institute) {
@@ -75,6 +91,22 @@ const CourseManager: React.FC = () => {
       loadFaculty();
     }
   }, [selectedDepartment, institute]);
+
+  const loadDepartments = async () => {
+    if (!institute) return;
+    
+    try {
+      const departmentList = await firestoreService.getDepartmentsByInstitute(institute.id);
+      setDepartments(departmentList);
+    } catch (error) {
+      console.error('Error loading departments:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load departments. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
 
   const loadDepartmentStats = async () => {
     if (!institute) return;
@@ -288,13 +320,26 @@ const CourseManager: React.FC = () => {
     return (
       <div className="p-4 sm:p-6 lg:p-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground mb-2">Course Manager</h1>
-          <p className="text-muted-foreground">Create and manage courses, assignments, and grades</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-foreground mb-2">Course Manager</h1>
+              <p className="text-muted-foreground">Create and manage courses, assignments, and grades</p>
+            </div>
+            <Button
+              onClick={() => setShowDepartmentManager(true)}
+              className="flex items-center gap-2"
+              data-testid="button-add-department"
+            >
+              <Plus className="h-4 w-4" />
+              Add Department
+            </Button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {departments.map((dept) => {
-            const Icon = dept.icon;
+            const Icon = getDepartmentIcon(dept);
+            const colorClass = getDepartmentColor(dept);
             const count = departmentStats[dept.id] || 0;
             
             return (
@@ -306,8 +351,8 @@ const CourseManager: React.FC = () => {
               >
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between mb-4">
-                    <div className={`w-12 h-12 ${dept.color} rounded-lg flex items-center justify-center`}>
-                      <Icon className="h-6 w-6 text-white" />
+                    <div className={`w-12 h-12 ${colorClass}/10 rounded-lg flex items-center justify-center`}>
+                      <Icon className={`h-6 w-6 ${colorClass.replace('bg-', 'text-')}`} />
                     </div>
                     <Badge variant="secondary" className="text-xs">
                       {count} courses
@@ -326,6 +371,37 @@ const CourseManager: React.FC = () => {
             );
           })}
         </div>
+
+        {/* Department Manager Modal */}
+        <Dialog 
+          open={showDepartmentManager} 
+          onOpenChange={(open) => {
+            setShowDepartmentManager(open);
+            if (!open) {
+              // Refresh departments when modal is closed
+              loadDepartments();
+              loadDepartmentStats();
+            }
+          }}
+        >
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Building2 className="h-5 w-5" />
+                Department Management
+              </DialogTitle>
+            </DialogHeader>
+            <DepartmentManager />
+            <div className="flex justify-end pt-4">
+              <Button 
+                onClick={() => setShowDepartmentManager(false)}
+                data-testid="button-close-department-manager"
+              >
+                Done
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
