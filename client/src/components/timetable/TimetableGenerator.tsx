@@ -400,15 +400,18 @@ export const TimetableGenerator: React.FC<TimetableGeneratorProps> = ({ onBack }
       return;
     }
 
-    // Validate that all sessions have required fields
+    // Validate that all sessions have required fields (subject, faculty, and classroom)
     const incompleteSessions = sessions.filter(session => 
-      !session.subjectId || !session.facultyId
+      !session.subjectId || 
+      !session.facultyId || 
+      (!session.classroomId && !session.roomText) ||
+      (session.classroomId === 'custom' && !session.roomText)
     );
     
     if (incompleteSessions.length > 0) {
       toast({
         title: "Incomplete Sessions",
-        description: `${incompleteSessions.length} session(s) are missing required information. Please complete all sessions before generating.`,
+        description: `${incompleteSessions.length} session(s) are missing required information (subject, faculty, or classroom). Please complete all sessions before generating.`,
         variant: "destructive",
       });
       return;
@@ -577,7 +580,7 @@ export const TimetableGenerator: React.FC<TimetableGeneratorProps> = ({ onBack }
           facultyName: facultyMember.name,
           class: formData.class,
           department: formData.department,
-          room: getRoomName(session) || 'TBA',
+          room: getRoomName(session),
           day: scheduledSession.day,
           timeSlot: `slot-${index}`,
           startTime: formatMinutesToTime(scheduledSession.startMinutes),
@@ -900,7 +903,7 @@ export const TimetableGenerator: React.FC<TimetableGeneratorProps> = ({ onBack }
                   <>
                     <Sparkles className="h-4 w-4 mr-2" />
                     Generate Timetable
-                    {sessions.length === 0 && <span className="ml-2 text-xs">(Add Sessions First)</span>}
+                    {sessions.length === 0 && <span className="ml-2 text-xs">(Configure Sessions Required)</span>}
                   </>
                 )}
               </Button>
@@ -966,7 +969,7 @@ export const TimetableGenerator: React.FC<TimetableGeneratorProps> = ({ onBack }
                 </Button>
               </div>
               <p className="text-sm text-muted-foreground">
-                Configure individual sessions for your timetable. Each session will be automatically scheduled based on availability.
+                Manually configure individual sessions for your timetable. You must add and configure each session before generating a timetable.
               </p>
             </CardHeader>
             <CardContent>
@@ -974,7 +977,7 @@ export const TimetableGenerator: React.FC<TimetableGeneratorProps> = ({ onBack }
                 <div className="text-center py-8 text-muted-foreground">
                   <BookOpen className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p className="text-lg font-medium">No sessions configured</p>
-                  <p className="text-sm">Add sessions to create a custom timetable, or generate automatically using the button in the configuration panel.</p>
+                  <p className="text-sm">Add and configure sessions to create your timetable. Each session must be manually configured with subject, faculty, and classroom details.</p>
                 </div>
               ) : (
                 <div className="space-y-4">
