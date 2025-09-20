@@ -18,7 +18,8 @@ import {
   RefreshCw,
   FileText,
   FileSpreadsheet,
-  ChevronDown
+  ChevronDown,
+  Trash2
 } from 'lucide-react';
 import {
   Select,
@@ -34,6 +35,17 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator
 } from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TimetableGrid } from '@/components/timetable/TimetableGrid';
 import { useToast } from '@/hooks/use-toast';
@@ -49,6 +61,7 @@ const TimetableHistoryPage: React.FC = () => {
   const [filterDepartment, setFilterDepartment] = useState('');
   const [selectedTimetable, setSelectedTimetable] = useState<Timetable | null>(null);
   const [showTimetableView, setShowTimetableView] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (institute) {
@@ -107,6 +120,30 @@ false; // No generatedBy field available in Timetable type
   const handleCloseTimetableView = () => {
     setShowTimetableView(false);
     setSelectedTimetable(null);
+  };
+
+  const handleDeleteTimetable = async (timetableId: string, timetableName: string) => {
+    try {
+      setDeletingId(timetableId);
+      await firestoreService.deleteTimetable(timetableId);
+      
+      // Remove from local state
+      setHistories(prev => prev.filter(history => history.id !== timetableId));
+      
+      toast({
+        title: "Timetable Deleted",
+        description: `${timetableName} has been successfully deleted.`,
+      });
+    } catch (error) {
+      console.error('Error deleting timetable:', error);
+      toast({
+        title: "Delete Failed",
+        description: "Failed to delete the timetable. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   if (showTimetableView && selectedTimetable) {
@@ -334,6 +371,43 @@ false; // No generatedBy field available in Timetable type
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          disabled={deletingId === history.id}
+                          data-testid={`button-delete-${history.id}`}
+                        >
+                          <Trash2 className="h-4 w-4 mr-1" />
+                          {deletingId === history.id ? 'Deleting...' : 'Delete'}
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete Timetable</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to delete the timetable for <strong>{history.class} - {history.department}</strong>?
+                            <br /><br />
+                            Generated on {formatDate(history.generatedAt)}
+                            <br /><br />
+                            This action cannot be undone and will permanently remove this timetable and all its data.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel data-testid={`button-cancel-delete-${history.id}`}>
+                            Cancel
+                          </AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => handleDeleteTimetable(history.id, `${history.class} - ${history.department}`)}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            data-testid={`button-confirm-delete-${history.id}`}
+                          >
+                            Delete Timetable
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                 </div>
               </CardContent>
