@@ -99,7 +99,7 @@ export const AppShell: React.FC<AppShellProps> = ({ page = 'dashboard' }) => {
 
   // Show main app if user is authenticated
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-card">
       <TopAppBar />
       
       <div className="flex">
