@@ -15,7 +15,10 @@ import {
   Clock,
   User,
   Building,
-  RefreshCw
+  RefreshCw,
+  FileText,
+  FileSpreadsheet,
+  ChevronDown
 } from 'lucide-react';
 import {
   Select,
@@ -24,6 +27,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator
+} from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TimetableGrid } from '@/components/timetable/TimetableGrid';
 import { useToast } from '@/hooks/use-toast';
@@ -267,29 +277,63 @@ false; // No generatedBy field available in Timetable type
                       <Eye className="h-4 w-4 mr-1" />
                       View
                     </Button>
-                    <Button 
-                      onClick={async () => {
-                        try {
-                          await exportService.exportTimetableToPDF(history);
-                          toast({
-                            title: "Export Successful",
-                            description: "Timetable exported as PDF successfully.",
-                          });
-                        } catch (error) {
-                          toast({
-                            title: "Export Failed",
-                            description: "Failed to export timetable as PDF.",
-                            variant: "destructive",
-                          });
-                        }
-                      }}
-                      variant="outline" 
-                      size="sm"
-                      data-testid={`button-export-${history.id}`}
-                    >
-                      <Download className="h-4 w-4 mr-1" />
-                      Export
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          data-testid={`button-export-dropdown-${history.id}`}
+                        >
+                          <Download className="h-4 w-4 mr-1" />
+                          Export
+                          <ChevronDown className="h-4 w-4 ml-1" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuItem
+                          onClick={async () => {
+                            try {
+                              await exportService.exportTimetableToPDF(history);
+                              toast({
+                                title: "Export Successful",
+                                description: "Timetable exported as PDF successfully.",
+                              });
+                            } catch (error) {
+                              toast({
+                                title: "Export Failed",
+                                description: "Failed to export timetable as PDF.",
+                                variant: "destructive",
+                              });
+                            }
+                          }}
+                          data-testid={`button-export-pdf-${history.id}`}
+                        >
+                          <FileText className="h-4 w-4 mr-2" />
+                          Export as PDF
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={async () => {
+                            try {
+                              await exportService.exportTimetableToExcel(history);
+                              toast({
+                                title: "Export Successful",
+                                description: "Timetable exported as Excel successfully.",
+                              });
+                            } catch (error) {
+                              toast({
+                                title: "Export Failed",
+                                description: "Failed to export timetable as Excel.",
+                                variant: "destructive",
+                              });
+                            }
+                          }}
+                          data-testid={`button-export-excel-${history.id}`}
+                        >
+                          <FileSpreadsheet className="h-4 w-4 mr-2" />
+                          Export as Excel
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </div>
               </CardContent>
