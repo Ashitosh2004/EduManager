@@ -151,7 +151,7 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({
 
               return (
                 <tr key={slot.time} className="hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors duration-200">
-                  <td className="border border-gray-200 dark:border-gray-700 p-4 text-center font-bold text-gray-700 dark:text-gray-300 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-750">
+                  <td className="border border-gray-200 dark:border-gray-700 p-4 text-center font-bold text-gray-700 dark:text-gray-300 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700">
                     {slot.label}
                   </td>
                   {days.map(day => {
