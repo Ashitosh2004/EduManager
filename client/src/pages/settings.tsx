@@ -6,6 +6,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { firestoreService } from '@/services/firestoreService';
 import { 
   ArrowLeft,
@@ -50,6 +51,7 @@ interface SettingsData {
 
 const SettingsPage: React.FC = () => {
   const { user, institute } = useAuth();
+  const { theme, setTheme } = useTheme();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [loadingSettings, setLoadingSettings] = useState(true);
@@ -61,7 +63,7 @@ const SettingsPage: React.FC = () => {
       systemAlerts: true,
     },
     display: {
-      theme: 'system',
+      theme: theme, // Initialize with current theme from ThemeProvider
       language: 'en',
       dateFormat: 'MM/DD/YYYY',
       timeFormat: '12h',
@@ -88,7 +90,12 @@ const SettingsPage: React.FC = () => {
         if (userSettings) {
           setSettings(prev => ({
             ...prev,
-            ...userSettings
+            ...userSettings,
+            display: {
+              ...prev.display,
+              ...userSettings.display,
+              theme: theme // Always use current theme from ThemeProvider
+            }
           }));
         }
       } catch (error) {
@@ -105,6 +112,14 @@ const SettingsPage: React.FC = () => {
 
     loadUserSettings();
   }, [user?.id, toast]);
+
+  // Sync settings state when theme changes from external sources (e.g., system theme toggle)
+  useEffect(() => {
+    setSettings(prev => ({
+      ...prev,
+      display: { ...prev.display, theme: theme }
+    }));
+  }, [theme]);
 
   const handleSaveSettings = async () => {
     if (!user?.id) {
@@ -197,6 +212,8 @@ const SettingsPage: React.FC = () => {
       };
       
       setSettings(defaultSettings);
+      // Also reset theme immediately via ThemeProvider
+      setTheme('system');
       
       toast({
         title: "Settings Reset",
@@ -365,12 +382,15 @@ const SettingsPage: React.FC = () => {
                 </label>
                 <Select 
                   value={settings.display.theme} 
-                  onValueChange={(value) =>
+                  onValueChange={(value) => {
+                    // Apply theme immediately via ThemeProvider
+                    setTheme(value as 'light' | 'dark' | 'system');
+                    // Update settings state for saving to Firestore
                     setSettings(prev => ({
                       ...prev,
                       display: { ...prev.display, theme: value }
-                    }))
-                  }
+                    }));
+                  }}
                 >
                   <SelectTrigger data-testid="select-theme">
                     <SelectValue />
