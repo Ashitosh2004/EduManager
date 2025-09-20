@@ -837,25 +837,12 @@ export const TimetableGenerator: React.FC<TimetableGeneratorProps> = ({ onBack }
                 </Select>
               </div>
               
-              <Button 
-                onClick={handleGenerateTimetable}
-                disabled={loading || !formData.department || !formData.class || sessions.length === 0}
-                className="w-full disabled:opacity-50"
-                data-testid="button-generate-timetable"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Generating...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="h-4 w-4 mr-2" />
-                    Generate Timetable
-                    {sessions.length === 0 && <span className="ml-2 text-xs">(Configure Sessions Required)</span>}
-                  </>
-                )}
-              </Button>
+              {/* Simplified button moved to session section */}
+              <div className="text-center p-4 bg-muted/30 rounded-lg">
+                <p className="text-sm text-muted-foreground">
+                  Configure sessions in the main panel to generate your timetable
+                </p>
+              </div>
               </div>
               
               {/* Conflict Detection Status */}
@@ -1080,6 +1067,110 @@ export const TimetableGenerator: React.FC<TimetableGeneratorProps> = ({ onBack }
               )}
             </CardContent>
           </Card>
+
+          {/* Generate Timetable Section */}
+          {sessions.length > 0 && (
+            <Card className="border-2 border-dashed border-primary/30 bg-gradient-to-br from-blue-50/50 to-indigo-50/50 dark:from-blue-950/20 dark:to-indigo-950/20">
+              <CardContent className="p-8 text-center">
+                <div className="max-w-md mx-auto space-y-6">
+                  <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto shadow-lg">
+                    <Sparkles className="h-8 w-8 text-white" />
+                  </div>
+                  
+                  <div>
+                    <h3 className="text-2xl font-bold text-foreground mb-2">Ready to Generate?</h3>
+                    <p className="text-muted-foreground">
+                      You've configured {sessions.length} session{sessions.length !== 1 ? 's' : ''}. 
+                      Generate your optimized timetable with intelligent conflict detection.
+                    </p>
+                  </div>
+
+                  {/* Session Summary */}
+                  <div className="grid grid-cols-3 gap-4 py-4">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{sessions.length}</div>
+                      <div className="text-xs text-muted-foreground">Sessions</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+                        {sessions.filter(s => s.subjectId && s.facultyId && (s.classroomId || s.roomText)).length}
+                      </div>
+                      <div className="text-xs text-muted-foreground">Complete</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+                        {sessions.reduce((total, s) => total + (s.durationMinutes || 60), 0) / 60}h
+                      </div>
+                      <div className="text-xs text-muted-foreground">Total Time</div>
+                    </div>
+                  </div>
+
+                  {/* Validation Status */}
+                  {sessions.some(s => !s.subjectId || !s.facultyId || (!s.classroomId && !s.roomText)) ? (
+                    <div className="p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/30 rounded-xl">
+                      <div className="flex items-center justify-center space-x-2 text-amber-700 dark:text-amber-300">
+                        <AlertTriangle className="w-5 h-5" />
+                        <span className="font-medium">Some sessions need completion</span>
+                      </div>
+                      <p className="text-sm text-amber-600 dark:text-amber-400 mt-1">
+                        Please fill in all required fields for each session before generating.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="p-4 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/30 rounded-xl">
+                      <div className="flex items-center justify-center space-x-2 text-emerald-700 dark:text-emerald-300">
+                        <CheckCircle className="w-5 h-5" />
+                        <span className="font-medium">All sessions are ready!</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Generate Button */}
+                  <Button 
+                    onClick={handleGenerateTimetable}
+                    disabled={loading || !formData.department || !formData.class || sessions.length === 0 || sessions.some(s => !s.subjectId || !s.facultyId || (!s.classroomId && !s.roomText))}
+                    size="lg"
+                    className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-4 px-8 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                    data-testid="button-generate-timetable"
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="h-5 w-5 mr-3 animate-spin" />
+                        <span className="text-lg">Generating Your Timetable...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-5 w-5 mr-3" />
+                        <span className="text-lg">Generate Intelligent Timetable</span>
+                      </>
+                    )}
+                  </Button>
+
+                  {/* Features */}
+                  <div className="flex flex-wrap justify-center gap-2 pt-2">
+                    <Badge variant="secondary" className="text-xs">
+                      <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Conflict Detection
+                    </Badge>
+                    <Badge variant="secondary" className="text-xs">
+                      <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                      AI Optimized
+                    </Badge>
+                    <Badge variant="secondary" className="text-xs">
+                      <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      Export Ready
+                    </Badge>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
           
           {/* Timetable Display */}
           {generatedTimetable ? (
