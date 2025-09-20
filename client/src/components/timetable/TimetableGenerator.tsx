@@ -505,57 +505,6 @@ export const TimetableGenerator: React.FC<TimetableGeneratorProps> = ({ onBack }
     return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
   };
 
-  const generateDynamicEntries = (): TimetableEntry[] => {
-    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-    const timeSlots = generateTimeSlots();
-    
-    // Get courses for selected department
-    const departmentCourses = courses.filter(course => course.department === formData.department);
-    const departmentFaculty = faculty.filter(f => f.department === formData.department);
-    
-    if (departmentCourses.length === 0 || departmentFaculty.length === 0) {
-      toast({
-        title: "No Data Available",
-        description: `No courses or faculty found for ${formData.department} department. Please add faculty and courses first.`,
-        variant: "destructive",
-      });
-      return [];
-    }
-
-    const entries: TimetableEntry[] = [];
-    let courseIndex = 0;
-
-    days.forEach((day, dayIndex) => {
-      timeSlots.forEach((slot, slotIndex) => {
-        // Generate classes with some randomness but ensure good coverage
-        if (Math.random() > 0.25) { // 75% chance of having a class
-          const course = departmentCourses[courseIndex % departmentCourses.length];
-          const assignedFaculty = departmentFaculty.find(f => f.id === course.facultyId) || 
-                                 departmentFaculty[Math.floor(Math.random() * departmentFaculty.length)];
-          
-          entries.push({
-            id: `entry-${dayIndex}-${slotIndex}`,
-            subjectId: course.id,
-            subjectName: course.name,
-            facultyId: assignedFaculty.id,
-            facultyName: assignedFaculty.name,
-            class: formData.class,
-            department: formData.department,
-            room: `Room ${Math.floor(Math.random() * 500) + 100}`, // Generate room numbers dynamically
-            day,
-            timeSlot: `slot-${slotIndex}`,
-            startTime: slot.start,
-            endTime: slot.end,
-            type: Math.random() > 0.7 ? 'lab' : 'lecture', // Random type assignment
-            durationMinutes: timetableParams.sessionDuration
-          });
-          courseIndex++;
-        }
-      });
-    });
-
-    return entries;
-  };
 
   // Generate timetable entries from user-defined sessions
   const generateEntriesFromSessions = (): TimetableEntry[] => {
