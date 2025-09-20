@@ -50,30 +50,6 @@ const MorePage: React.FC = () => {
       primary: true
     },
     {
-      id: 'export',
-      title: 'Export Data',
-      description: 'Export timetables and other data',
-      icon: Download,
-      action: () => console.log('Export functionality coming soon'),
-      secondary: true
-    },
-    {
-      id: 'import',
-      title: 'Import Data',
-      description: 'Import existing timetable data',
-      icon: Upload,
-      action: () => console.log('Import functionality coming soon'),
-      secondary: true
-    },
-    {
-      id: 'archive',
-      title: 'Archive Management',
-      description: 'Manage archived timetables and data',
-      icon: Archive,
-      action: () => console.log('Archive functionality coming soon'),
-      secondary: true
-    },
-    {
       id: 'settings',
       title: 'Settings',
       description: 'App preferences and configuration',

@@ -34,7 +34,7 @@ export const BottomNavigation: React.FC = () => {
   const [location] = useLocation();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-surface border-t border-border md:hidden z-40">
+    <nav className="fixed bottom-0 left-0 right-0 bg-surface/80 border-t border-border/50 md:hidden z-40 backdrop-blur-glass supports-[backdrop-filter]:bg-background/60">
       <div className="grid grid-cols-4 h-16">
         {bottomNavItems.map((item) => {
           const Icon = item.icon;

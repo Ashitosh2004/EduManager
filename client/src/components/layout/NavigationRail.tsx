@@ -66,7 +66,7 @@ export const NavigationRail: React.FC = () => {
   };
 
   return (
-    <nav className="hidden md:flex flex-col w-20 lg:w-64 bg-surface border-r border-border min-h-screen">
+    <nav className="hidden md:flex flex-col w-20 lg:w-64 bg-surface/80 border-r border-border/50 min-h-screen backdrop-blur-glass supports-[backdrop-filter]:bg-background/60">
       <div className="p-4 lg:px-6">
         <div className="space-y-2">
           {navigationItems.map((item) => {

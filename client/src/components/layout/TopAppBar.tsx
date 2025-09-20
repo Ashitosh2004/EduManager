@@ -38,8 +38,12 @@ export const TopAppBar: React.FC<TopAppBarProps> = ({ onMenuClick }) => {
     setLocation('/settings');
   };
 
+  const handleNotificationClick = () => {
+    setLocation('/notifications');
+  };
+
   return (
-    <header className="bg-gradient-secondary border-b border-border sticky top-0 z-50 backdrop-blur-glass">
+    <header className="bg-gradient-secondary/80 border-b border-border/50 sticky top-0 z-50 backdrop-blur-glass supports-[backdrop-filter]:bg-background/60">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center space-x-4">
@@ -69,6 +73,7 @@ export const TopAppBar: React.FC<TopAppBarProps> = ({ onMenuClick }) => {
               variant="ghost"
               size="sm"
               className="p-2 rounded-full hover:bg-accent transition-colors duration-200 relative"
+              onClick={handleNotificationClick}
               data-testid="button-notifications"
             >
               <Bell className="h-5 w-5" />

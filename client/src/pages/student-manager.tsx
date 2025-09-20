@@ -335,7 +335,7 @@ const StudentManager: React.FC = () => {
             return (
               <Card 
                 key={dept.id}
-                className="cursor-pointer transition-all duration-300 hover:shadow-lg hover:scale-[1.02]"
+                className="cursor-pointer dept-card-gradient"
                 onClick={() => handleDepartmentSelect(dept.id)}
               >
                 <CardContent className="p-6">
