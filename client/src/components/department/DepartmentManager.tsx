@@ -133,12 +133,13 @@ export const DepartmentManager: React.FC = () => {
         return;
       }
 
-      const selectedIconColor = departmentIconsAndColors[formData.iconIndex];
+      const selectedIcon = departmentIconsAndColors[formData.iconIndex];
+      const selectedColor = departmentIconsAndColors[formData.colorIndex];
       const departmentData = {
         name: formData.name.trim(),
         shortName: formData.shortName.trim() || undefined,
-        iconName: selectedIconColor.icon.name || 'Computer',
-        colorClass: selectedIconColor.color,
+        iconName: selectedIcon.icon.name || 'Computer',
+        colorClass: selectedColor.color,
         instituteId: institute.id,
         createdAt: editingDepartment ? editingDepartment.createdAt : new Date()
       };
@@ -369,33 +370,61 @@ export const DepartmentManager: React.FC = () => {
               />
             </div>
 
-            <div>
-              <label className="text-sm font-medium text-foreground mb-2 block">
-                Icon & Color
-              </label>
-              <Select 
-                value={formData.iconIndex.toString()} 
-                onValueChange={(value) => setFormData({ ...formData, iconIndex: parseInt(value), colorIndex: parseInt(value) })}
-              >
-                <SelectTrigger data-testid="select-department-icon">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {departmentIconsAndColors.map((item, index) => {
-                    const Icon = item.icon;
-                    return (
-                      <SelectItem key={index} value={index.toString()}>
-                        <div className="flex items-center space-x-2">
-                          <div className={`w-6 h-6 ${item.color} rounded flex items-center justify-center`}>
-                            <Icon className="h-4 w-4 text-white" />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium text-foreground mb-2 block">
+                  Icon
+                </label>
+                <Select 
+                  value={formData.iconIndex.toString()} 
+                  onValueChange={(value) => setFormData({ ...formData, iconIndex: parseInt(value) })}
+                >
+                  <SelectTrigger data-testid="select-department-icon">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {departmentIconsAndColors.map((item, index) => {
+                      const Icon = item.icon;
+                      return (
+                        <SelectItem key={index} value={index.toString()}>
+                          <div className="flex items-center space-x-2">
+                            <div className="w-6 h-6 bg-gray-500 rounded flex items-center justify-center">
+                              <Icon className="h-4 w-4 text-white" />
+                            </div>
+                            <span>Icon {index + 1}</span>
                           </div>
-                          <span className="capitalize">{item.color.replace('bg-', '').replace('-500', '')}</span>
-                        </div>
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium text-foreground mb-2 block">
+                  Color
+                </label>
+                <Select 
+                  value={formData.colorIndex.toString()} 
+                  onValueChange={(value) => setFormData({ ...formData, colorIndex: parseInt(value) })}
+                >
+                  <SelectTrigger data-testid="select-department-color">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {departmentIconsAndColors.map((item, index) => {
+                      return (
+                        <SelectItem key={index} value={index.toString()}>
+                          <div className="flex items-center space-x-2">
+                            <div className={`w-6 h-6 ${item.color} rounded`}></div>
+                            <span className="capitalize">{item.color.replace('bg-', '').replace('-500', '')}</span>
+                          </div>
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             
             <div className="flex justify-end space-x-2 pt-4">

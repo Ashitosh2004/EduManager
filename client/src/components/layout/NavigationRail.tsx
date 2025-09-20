@@ -94,26 +94,6 @@ export const NavigationRail: React.FC = () => {
         </div>
       </div>
       
-      <div className="mt-auto p-4 lg:px-6">
-        <Button
-          variant="ghost"
-          className="w-full justify-start space-x-3 px-3 py-3 rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-all duration-200"
-          data-testid="nav-settings"
-        >
-          <Settings className="h-5 w-5" />
-          <span className="hidden lg:block font-medium">Settings</span>
-        </Button>
-        
-        <Button
-          variant="ghost"
-          className="w-full justify-start space-x-3 px-3 py-3 rounded-lg text-muted-foreground hover:bg-destructive hover:text-destructive-foreground transition-all duration-200"
-          onClick={handleSignOut}
-          data-testid="nav-signout"
-        >
-          <LogOut className="h-5 w-5" />
-          <span className="hidden lg:block font-medium">Sign Out</span>
-        </Button>
-      </div>
     </nav>
   );
 };

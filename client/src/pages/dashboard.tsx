@@ -219,8 +219,6 @@ const Dashboard: React.FC = () => {
         })}
       </div>
 
-      {/* Recent Activity and Upcoming Schedule */}
-      <RecentActivity />
     </div>
   );
 };

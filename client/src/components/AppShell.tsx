@@ -109,7 +109,6 @@ export const AppShell: React.FC<AppShellProps> = ({ page = 'dashboard' }) => {
       </div>
 
       <BottomNavigation />
-      <FloatingActionButton />
     </div>
   );
 };
