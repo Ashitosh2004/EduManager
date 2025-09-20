@@ -18,6 +18,7 @@ function Router() {
       <Route path="/courses" component={() => <AppShell page="courses" />} />
       <Route path="/timetable" component={() => <AppShell page="timetable" />} />
       <Route path="/timetable-history" component={() => <AppShell page="timetable-history" />} />
+      <Route path="/notifications" component={() => <AppShell page="notifications" />} />
       <Route path="/settings" component={() => <AppShell page="settings" />} />
       <Route path="/profile" component={() => <AppShell page="profile" />} />
       <Route path="/more" component={() => <AppShell page="more" />} />

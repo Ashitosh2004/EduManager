@@ -12,7 +12,6 @@ import {
   TrendingUp,
   ArrowRight
 } from 'lucide-react';
-import { RecentActivity } from '@/components/dashboard/RecentActivity';
 
 interface DashboardStats {
   students: number;
