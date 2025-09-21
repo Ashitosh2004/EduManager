@@ -10,6 +10,23 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { 
   ManagerHeader,
   ManagerToolbar,
@@ -26,7 +43,12 @@ import {
   Zap, 
   Cog, 
   Plus, 
-  Users
+  Users,
+  TrendingUp,
+  GraduationCap,
+  Edit,
+  Trash2,
+  MoreVertical
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -65,6 +87,14 @@ export const StudentManager: React.FC<StudentManagerProps> = ({ onBack }) => {
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
+  
+  // Student actions state
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [showPromoteDialog, setShowPromoteDialog] = useState(false);
+  const [showPassoutDialog, setShowPassoutDialog] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => {
     if (institute && !selectedDepartment) {
@@ -103,7 +133,10 @@ export const StudentManager: React.FC<StudentManagerProps> = ({ onBack }) => {
         selectedDepartment, 
         selectedClass
       );
-      setStudents(studentList);
+      
+      // Filter out graduated students (those with class set to 'Graduated')
+      const activeStudents = studentList.filter(student => student.class !== 'Graduated');
+      setStudents(activeStudents);
     } catch (error) {
       console.error('Error loading students:', error);
       toast({
@@ -161,6 +194,158 @@ export const StudentManager: React.FC<StudentManagerProps> = ({ onBack }) => {
     const semester = baseSemester + (isOddSemester ? 1 : 2);
     
     return { year, semester };
+  };
+
+  // Helper function to get next class for promotion
+  const getNextClass = (currentClass: string, department: string) => {
+    // Parse current class to extract department, section, and year
+    // e.g., "CSE-A (2nd Year)" -> dept: "CSE", section: "A", year: 2
+    const classMatch = currentClass.match(/^([A-Z]+)-([A-Z]) \((\d+)(?:st|nd|rd|th) Year\)$/);
+    if (!classMatch) return null;
+    
+    const [, dept, section, yearStr] = classMatch;
+    const currentYear = parseInt(yearStr);
+    
+    // Check if student is already in final year (4th year)
+    if (currentYear >= 4) return null;
+    
+    // Construct next year class for the same section
+    const nextYear = currentYear + 1;
+    const yearSuffix = getYearSuffix(nextYear);
+    const nextClass = `${dept}-${section} (${nextYear}${yearSuffix} Year)`;
+    
+    // Verify the next class exists in our predefined classes list
+    const departmentClasses = classes[department as keyof typeof classes];
+    if (departmentClasses?.includes(nextClass)) {
+      return nextClass;
+    }
+    
+    return null; // Next class not found in predefined list
+  };
+
+  // Helper function to get year suffix (1st, 2nd, 3rd, 4th)
+  const getYearSuffix = (year: number): string => {
+    switch (year) {
+      case 1: return 'st';
+      case 2: return 'nd';
+      case 3: return 'rd';
+      case 4: return 'th';
+      default: return 'th';
+    }
+  };
+
+  // Student promotion function
+  const handlePromoteStudent = async () => {
+    if (!selectedStudent || !selectedDepartment) return;
+
+    try {
+      setActionLoading(true);
+      
+      const nextClass = getNextClass(selectedStudent.class, selectedDepartment);
+      if (!nextClass) {
+        toast({
+          title: "Cannot Promote",
+          description: "This student is already in the final year. Consider marking them as passed out.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const { year, semester } = parseClassInfo(nextClass);
+      
+      await firestoreService.updateStudent(selectedStudent.id, {
+        class: nextClass,
+        year,
+        semester,
+      });
+
+      toast({
+        title: "Student Promoted",
+        description: `${selectedStudent.name} has been promoted to ${nextClass}.`,
+      });
+
+      setShowPromoteDialog(false);
+      setSelectedStudent(null);
+      await loadStudents(); // Refresh the list
+    } catch (error) {
+      console.error('Error promoting student:', error);
+      toast({
+        title: "Error",
+        description: "Failed to promote student. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Student passout function
+  const handlePassoutStudent = async () => {
+    if (!selectedStudent) return;
+
+    try {
+      setActionLoading(true);
+      
+      // Mark student as graduated
+      const graduationDate = new Date();
+      const originalClass = selectedStudent.class;
+      
+      await firestoreService.updateStudent(selectedStudent.id, {
+        class: 'Graduated', // This removes them from active class queries
+        year: selectedStudent.year, // Keep original year for records
+        semester: selectedStudent.semester, // Keep original semester for records
+        // Store graduation information in parentContact field as a structured note
+        // This is a temporary solution - ideally we'd extend the Student type
+        parentContact: `Graduated: ${originalClass} | Date: ${graduationDate.toISOString().split('T')[0]} | Original: ${selectedStudent.parentContact || 'N/A'}`,
+      });
+
+      toast({
+        title: "Student Graduated",
+        description: `${selectedStudent.name} has been marked as graduated from ${originalClass}.`,
+      });
+
+      setShowPassoutDialog(false);
+      setSelectedStudent(null);
+      await loadStudents(); // Refresh the list (graduated students are filtered out)
+    } catch (error) {
+      console.error('Error marking student as graduated:', error);
+      toast({
+        title: "Error",
+        description: "Failed to mark student as graduated. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Delete student function
+  const handleDeleteStudent = async () => {
+    if (!selectedStudent) return;
+
+    try {
+      setActionLoading(true);
+      
+      await firestoreService.deleteStudent(selectedStudent.id);
+
+      toast({
+        title: "Student Deleted",
+        description: `${selectedStudent.name} has been removed from the system.`,
+      });
+
+      setShowDeleteDialog(false);
+      setSelectedStudent(null);
+      await loadStudents(); // Refresh the list
+    } catch (error) {
+      console.error('Error deleting student:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete student. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   // Enhanced form validation with type safety
@@ -418,26 +603,106 @@ export const StudentManager: React.FC<StudentManagerProps> = ({ onBack }) => {
       ) : filteredStudents.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredStudents.map((student) => (
-            <PersonCard
-              key={student.id}
-              name={student.name}
-              identifier={student.rollNumber}
-              email={student.email}
-              department={selectedDepartment}
-              additionalInfo={[
-                { label: 'Year', value: student.year.toString() },
-                { label: 'Semester', value: student.semester.toString() }
-              ]}
-              onEdit={() => {
-                // Handle edit
-                console.log('Edit student:', student.id);
-              }}
-              onDelete={() => {
-                // Handle delete
-                console.log('Delete student:', student.id);
-              }}
-              data-testid={`student-card-${student.id}`}
-            />
+            <div key={student.id} className="relative">
+              <PersonCard
+                name={student.name}
+                identifier={student.rollNumber}
+                email={student.email}
+                department={selectedDepartment}
+                additionalInfo={[
+                  { label: 'Year', value: student.year.toString() },
+                  { label: 'Semester', value: student.semester.toString() }
+                ]}
+                onEdit={() => {
+                  setSelectedStudent(student);
+                  setFormData({
+                    name: student.name,
+                    email: student.email,
+                    rollNumber: student.rollNumber,
+                    phoneNumber: student.phoneNumber || '',
+                    parentContact: student.parentContact || ''
+                  });
+                  setShowEditModal(true);
+                }}
+                onDelete={() => {
+                  setSelectedStudent(student);
+                  setShowDeleteDialog(true);
+                }}
+                data-testid={`student-card-${student.id}`}
+              />
+              
+              {/* Action Dropdown */}
+              <div className="absolute top-3 right-3">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0"
+                      data-testid={`student-actions-${student.id}`}
+                    >
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setSelectedStudent(student);
+                        setFormData({
+                          name: student.name,
+                          email: student.email,
+                          rollNumber: student.rollNumber,
+                          phoneNumber: student.phoneNumber || '',
+                          parentContact: student.parentContact || ''
+                        });
+                        setShowEditModal(true);
+                      }}
+                      data-testid={`action-edit-${student.id}`}
+                    >
+                      <Edit className="h-4 w-4 mr-2" />
+                      Edit Student
+                    </DropdownMenuItem>
+                    
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setSelectedStudent(student);
+                        setShowPromoteDialog(true);
+                      }}
+                      disabled={!getNextClass(student.class, selectedDepartment)}
+                      data-testid={`action-promote-${student.id}`}
+                    >
+                      <TrendingUp className="h-4 w-4 mr-2" />
+                      Promote Student
+                    </DropdownMenuItem>
+                    
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setSelectedStudent(student);
+                        setShowPassoutDialog(true);
+                      }}
+                      data-testid={`action-passout-${student.id}`}
+                    >
+                      <GraduationCap className="h-4 w-4 mr-2" />
+                      Mark as Graduated
+                    </DropdownMenuItem>
+                    
+                    <DropdownMenuSeparator />
+                    
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setSelectedStudent(student);
+                        setShowDeleteDialog(true);
+                      }}
+                      className="text-destructive focus:text-destructive"
+                      data-testid={`action-delete-${student.id}`}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete Student
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </div>
           ))}
         </div>
       ) : (
@@ -594,6 +859,267 @@ export const StudentManager: React.FC<StudentManagerProps> = ({ onBack }) => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Edit Student Modal */}
+      <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
+        <DialogContent className="sm:max-w-md" data-testid="modal-edit-student">
+          <DialogHeader>
+            <DialogTitle>Edit Student</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {/* Name Field */}
+            <div className="space-y-2">
+              <Label htmlFor="edit-name">Name *</Label>
+              <Input
+                id="edit-name"
+                placeholder="Enter student name"
+                value={formData.name}
+                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                className={formErrors.name ? "border-destructive" : ""}
+                data-testid="input-edit-student-name"
+              />
+              {formErrors.name && (
+                <p className="text-sm text-destructive" data-testid="error-edit-student-name">
+                  {formErrors.name}
+                </p>
+              )}
+            </div>
+            
+            {/* Email Field */}
+            <div className="space-y-2">
+              <Label htmlFor="edit-email">Email *</Label>
+              <Input
+                id="edit-email"
+                type="email"
+                placeholder="Enter email address"
+                value={formData.email}
+                onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                className={formErrors.email ? "border-destructive" : ""}
+                data-testid="input-edit-student-email"
+              />
+              {formErrors.email && (
+                <p className="text-sm text-destructive" data-testid="error-edit-student-email">
+                  {formErrors.email}
+                </p>
+              )}
+            </div>
+            
+            {/* Roll Number Field */}
+            <div className="space-y-2">
+              <Label htmlFor="edit-rollNumber">Roll Number *</Label>
+              <Input
+                id="edit-rollNumber"
+                placeholder="Enter roll number"
+                value={formData.rollNumber}
+                onChange={(e) => setFormData(prev => ({ ...prev, rollNumber: e.target.value }))}
+                className={formErrors.rollNumber ? "border-destructive" : ""}
+                data-testid="input-edit-student-roll"
+              />
+              {formErrors.rollNumber && (
+                <p className="text-sm text-destructive" data-testid="error-edit-student-roll">
+                  {formErrors.rollNumber}
+                </p>
+              )}
+            </div>
+            
+            {/* Phone Number Field */}
+            <div className="space-y-2">
+              <Label htmlFor="edit-phoneNumber">Phone Number (Optional)</Label>
+              <Input
+                id="edit-phoneNumber"
+                placeholder="Enter phone number"
+                value={formData.phoneNumber}
+                onChange={(e) => setFormData(prev => ({ ...prev, phoneNumber: e.target.value }))}
+                className={formErrors.phoneNumber ? "border-destructive" : ""}
+                data-testid="input-edit-student-phone"
+              />
+              {formErrors.phoneNumber && (
+                <p className="text-sm text-destructive" data-testid="error-edit-student-phone">
+                  {formErrors.phoneNumber}
+                </p>
+              )}
+            </div>
+            
+            {/* Parent Contact Field */}
+            <div className="space-y-2">
+              <Label htmlFor="edit-parentContact">Parent Contact (Optional)</Label>
+              <Input
+                id="edit-parentContact"
+                placeholder="Enter parent contact"
+                value={formData.parentContact}
+                onChange={(e) => setFormData(prev => ({ ...prev, parentContact: e.target.value }))}
+                className={formErrors.parentContact ? "border-destructive" : ""}
+                data-testid="input-edit-student-parent"
+              />
+              {formErrors.parentContact && (
+                <p className="text-sm text-destructive" data-testid="error-edit-student-parent">
+                  {formErrors.parentContact}
+                </p>
+              )}
+            </div>
+          </div>
+          
+          <DialogFooter className="gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => setShowEditModal(false)}
+              disabled={submitting}
+              data-testid="button-cancel-edit-student"
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={async () => {
+                if (!validateForm() || !selectedStudent) return;
+                
+                try {
+                  setSubmitting(true);
+                  await firestoreService.updateStudent(selectedStudent.id, {
+                    name: formData.name.trim(),
+                    email: formData.email.trim().toLowerCase(),
+                    rollNumber: formData.rollNumber.trim(),
+                    phoneNumber: formData.phoneNumber?.trim() || undefined,
+                    parentContact: formData.parentContact?.trim() || undefined,
+                  });
+                  
+                  toast({
+                    title: "Success",
+                    description: `Student ${formData.name} updated successfully.`,
+                  });
+                  
+                  setShowEditModal(false);
+                  setSelectedStudent(null);
+                  resetForm();
+                  await loadStudents();
+                } catch (error) {
+                  console.error('Error updating student:', error);
+                  toast({
+                    title: "Error",
+                    description: "Failed to update student. Please try again.",
+                    variant: "destructive",
+                  });
+                } finally {
+                  setSubmitting(false);
+                }
+              }}
+              disabled={submitting}
+              data-testid="button-submit-edit-student"
+            >
+              {submitting ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
+                  Updating...
+                </>
+              ) : (
+                'Update Student'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Promote Student Dialog */}
+      <AlertDialog open={showPromoteDialog} onOpenChange={setShowPromoteDialog}>
+        <AlertDialogContent data-testid="dialog-promote-student">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Promote Student</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to promote <strong>{selectedStudent?.name}</strong> from{' '}
+              <strong>{selectedStudent?.class}</strong> to{' '}
+              <strong>{selectedStudent && selectedDepartment ? getNextClass(selectedStudent.class, selectedDepartment) : ''}</strong>?
+              
+              This action will update their academic year and semester automatically.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={actionLoading} data-testid="button-cancel-promote">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handlePromoteStudent}
+              disabled={actionLoading}
+              data-testid="button-confirm-promote"
+            >
+              {actionLoading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
+                  Promoting...
+                </>
+              ) : (
+                'Promote Student'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Passout Student Dialog */}
+      <AlertDialog open={showPassoutDialog} onOpenChange={setShowPassoutDialog}>
+        <AlertDialogContent data-testid="dialog-passout-student">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mark Student as Graduated</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to mark <strong>{selectedStudent?.name}</strong> as graduated?
+              
+              This action will update their class status to indicate graduation. This action cannot be easily undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={actionLoading} data-testid="button-cancel-passout">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handlePassoutStudent}
+              disabled={actionLoading}
+              data-testid="button-confirm-passout"
+            >
+              {actionLoading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
+                  Processing...
+                </>
+              ) : (
+                'Mark as Graduated'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Student Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent data-testid="dialog-delete-student">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Student</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <strong>{selectedStudent?.name}</strong>?
+              
+              This action will permanently remove the student from the system and cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={actionLoading} data-testid="button-cancel-delete">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteStudent}
+              disabled={actionLoading}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="button-confirm-delete"
+            >
+              {actionLoading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
+                  Deleting...
+                </>
+              ) : (
+                'Delete Student'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
