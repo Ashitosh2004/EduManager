@@ -2,7 +2,7 @@
   "buildCommand": "npm run vercel-build",
   "outputDirectory": "dist/public",
   "functions": {
-    "server/index.ts": {
+    "api/index.ts": {
       "runtime": "@vercel/node@3.0.0",
       "maxDuration": 30
     }
@@ -10,7 +10,7 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "/server/index.ts"
+      "destination": "/api/index"
     }
   ],
   "env": {
