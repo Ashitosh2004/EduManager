@@ -145,6 +145,26 @@ export const getIconFromKey = (iconKey: string): any => {
   return iconMapping[iconKey as IconKey] || Computer;
 };
 
+// Validate and sanitize gradient strings for security
+export const validateGradient = (gradient: string): string | undefined => {
+  if (!gradient || gradient.trim() === '') return undefined;
+  
+  // Only allow linear-gradient with rgba, rgb, hsl values
+  const safeGradientPattern = /^linear-gradient\(\s*\d+deg\s*,\s*(rgba?\([^)]+\)|hsl[a]?\([^)]+\))([\s,]+(rgba?\([^)]+\)|hsl[a]?\([^)]+\)))*\s*\)$/i;
+  
+  if (safeGradientPattern.test(gradient.trim())) {
+    return gradient.trim();
+  }
+  
+  return undefined;
+};
+
+// Get safe gradient - returns validated custom gradient or default
+export const getSafeGradient = (customGradient: string | undefined, defaultGradient: string): string => {
+  if (!customGradient) return defaultGradient;
+  return validateGradient(customGradient) || defaultGradient;
+};
+
 // Default departments for new institutes
 export const defaultDepartments = [
   { id: 'cse', name: 'Computer Science', icon: Computer, color: 'bg-blue-500' },

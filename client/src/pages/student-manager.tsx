@@ -36,7 +36,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { DepartmentManager } from '@/components/department/DepartmentManager';
-import { generateClassesForDepartment, departmentIconsAndColors, getDepartmentColorDetails, getIconFromKey } from '@/utils/departments';
+import { generateClassesForDepartment, departmentIconsAndColors, getDepartmentColorDetails, getIconFromKey, getSafeGradient } from '@/utils/departments';
 
 // Helper function to get icon component from department
 const getDepartmentIcon = (department: Department) => {
@@ -331,18 +331,19 @@ const StudentManager: React.FC = () => {
                 key={dept.id}
                 className="cursor-pointer transition-all duration-300 hover:shadow-lg hover:scale-[1.02] border-0 overflow-hidden"
                 style={{
-                  background: dept.customGradient || colorDetails.gradient,
+                  background: getSafeGradient(dept.customGradient, colorDetails.gradient),
                   backdropFilter: 'blur(16px)',
                   WebkitBackdropFilter: 'blur(16px)',
                   border: `1px solid rgba(59, 130, 246, 0.2)`
                 }}
                 onMouseEnter={(e) => {
-                  if (!dept.customGradient) {
+                  const safeGradient = getSafeGradient(dept.customGradient, colorDetails.gradient);
+                  if (safeGradient === colorDetails.gradient) {
                     e.currentTarget.style.background = colorDetails.hoverGradient;
                   }
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.background = dept.customGradient || colorDetails.gradient;
+                  e.currentTarget.style.background = getSafeGradient(dept.customGradient, colorDetails.gradient);
                 }}
                 onClick={() => handleDepartmentSelect(dept.id)}
                 data-testid={`dept-card-${dept.id}`}
@@ -355,7 +356,7 @@ const StudentManager: React.FC = () => {
                     <span className="text-2xl font-bold text-foreground">{studentCount}</span>
                   </div>
                   <h3 className="font-semibold text-foreground mb-1">{dept.name}</h3>
-                  <p className="text-sm text-muted-foreground">{dept.id.toUpperCase()} Department</p>
+                  <p className="text-sm text-muted-foreground">{dept.shortName || dept.name} Department</p>
                 </CardContent>
               </Card>
             );

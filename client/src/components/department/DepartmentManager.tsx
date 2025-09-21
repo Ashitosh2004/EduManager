@@ -20,7 +20,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { firestoreService } from '@/services/firestoreService';
 import { Department } from '@/types';
-import { departmentIconsAndColors, departmentColors, getDepartmentColorDetails, DepartmentColor, getIconFromKey } from '@/utils/departments';
+import { departmentIconsAndColors, departmentColors, getDepartmentColorDetails, DepartmentColor, getIconFromKey, validateGradient, getSafeGradient } from '@/utils/departments';
 import { 
   Plus, 
   Edit, 
@@ -141,6 +141,17 @@ export const DepartmentManager: React.FC = () => {
         return;
       }
 
+      // Validate custom gradient for security
+      const validatedGradient = validateGradient(formData.customGradient);
+      if (formData.customGradient && !validatedGradient) {
+        toast({
+          title: "Invalid Gradient",
+          description: "Custom gradient must be a valid linear-gradient with rgba/rgb/hsl values only.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
       const selectedIcon = departmentIconsAndColors[formData.iconIndex];
       const selectedColor = departmentColors[formData.colorIndex];
       const departmentData = {
@@ -148,7 +159,7 @@ export const DepartmentManager: React.FC = () => {
         shortName: formData.shortName.trim() || undefined,
         iconName: selectedIcon.key,
         colorClass: selectedColor.class,
-        customGradient: formData.customGradient || selectedColor.gradient,
+        customGradient: validatedGradient,
         instituteId: institute.id,
         createdAt: editingDepartment ? editingDepartment.createdAt : new Date()
       };
@@ -283,18 +294,19 @@ export const DepartmentManager: React.FC = () => {
                 key={department.id} 
                 className="hover:shadow-md transition-all duration-300 overflow-hidden border-0"
                 style={{
-                  background: department.customGradient || colorDetails.gradient,
+                  background: getSafeGradient(department.customGradient, colorDetails.gradient),
                   backdropFilter: 'blur(16px)',
                   WebkitBackdropFilter: 'blur(16px)',
                   border: `1px solid rgba(59, 130, 246, 0.2)`
                 }}
                 onMouseEnter={(e) => {
-                  if (!department.customGradient) {
+                  const safeGradient = getSafeGradient(department.customGradient, colorDetails.gradient);
+                  if (safeGradient === colorDetails.gradient) {
                     e.currentTarget.style.background = colorDetails.hoverGradient;
                   }
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.background = department.customGradient || colorDetails.gradient;
+                  e.currentTarget.style.background = getSafeGradient(department.customGradient, colorDetails.gradient);
                 }}
                 data-testid={`card-department-${department.id}`}
               >
@@ -463,7 +475,7 @@ export const DepartmentManager: React.FC = () => {
                 data-testid="input-custom-gradient"
               />
               <p className="text-xs text-muted-foreground mt-1">
-                Leave empty to use the selected color's default gradient
+                Only linear-gradient with rgba/rgb/hsl colors allowed. Leave empty for default gradient.
               </p>
             </div>
             

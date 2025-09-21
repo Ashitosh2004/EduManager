@@ -9,7 +9,6 @@ import {
   UserCheck, 
   BookOpen, 
   Calendar, 
-  TrendingUp,
   ArrowRight
 } from 'lucide-react';
 
@@ -121,10 +120,6 @@ const Dashboard: React.FC = () => {
               <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
                 <Users className="h-6 w-6 text-primary" />
               </div>
-              <div className="flex items-center text-sm text-green-600">
-                <TrendingUp className="h-4 w-4 mr-1" />
-                <span>+12%</span>
-              </div>
             </div>
             <h3 className="text-2xl font-bold text-foreground mb-1" data-testid="stat-students">
               {loading ? '...' : stats.students}
@@ -139,10 +134,6 @@ const Dashboard: React.FC = () => {
               <div className="w-12 h-12 bg-green-500/10 rounded-xl flex items-center justify-center">
                 <UserCheck className="h-6 w-6 text-green-500" />
               </div>
-              <div className="flex items-center text-sm text-green-600">
-                <TrendingUp className="h-4 w-4 mr-1" />
-                <span>+3%</span>
-              </div>
             </div>
             <h3 className="text-2xl font-bold text-foreground mb-1" data-testid="stat-faculty">
               {loading ? '...' : stats.faculty}
@@ -156,10 +147,6 @@ const Dashboard: React.FC = () => {
             <div className="flex items-center justify-between mb-4">
               <div className="w-12 h-12 bg-purple-500/10 rounded-xl flex items-center justify-center">
                 <BookOpen className="h-6 w-6 text-purple-500" />
-              </div>
-              <div className="flex items-center text-sm text-green-600">
-                <TrendingUp className="h-4 w-4 mr-1" />
-                <span>+8%</span>
               </div>
             </div>
             <h3 className="text-2xl font-bold text-foreground mb-1" data-testid="stat-courses">

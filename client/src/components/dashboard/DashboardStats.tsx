@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { TrendingUp, Users, UserCheck, BookOpen, Calendar } from 'lucide-react';
+import { Users, UserCheck, BookOpen, Calendar } from 'lucide-react';
 
 interface DashboardStatsProps {
   stats: {
@@ -19,7 +19,6 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ stats, loading }
       value: stats.students,
       icon: Users,
       color: 'bg-primary',
-      trend: '+12%',
       testId: 'stat-students'
     },
     {
@@ -27,7 +26,6 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ stats, loading }
       value: stats.faculty,
       icon: UserCheck,
       color: 'bg-green-500',
-      trend: '+3%',
       testId: 'stat-faculty'
     },
     {
@@ -35,7 +33,6 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ stats, loading }
       value: stats.courses,
       icon: BookOpen,
       color: 'bg-purple-500',
-      trend: '+8%',
       testId: 'stat-courses'
     },
     {
@@ -43,7 +40,6 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ stats, loading }
       value: stats.timetables,
       icon: Calendar,
       color: 'bg-orange-500',
-      trend: 'Updated',
       testId: 'stat-timetables'
     }
   ];
@@ -59,10 +55,6 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ stats, loading }
               <div className="flex items-center justify-between mb-4">
                 <div className={`w-12 h-12 ${card.color}/10 rounded-xl flex items-center justify-center`}>
                   <Icon className={`h-6 w-6 text-${card.color.split('-')[1]}-500`} />
-                </div>
-                <div className="flex items-center text-sm text-green-600">
-                  {card.trend !== 'Updated' && <TrendingUp className="h-4 w-4 mr-1" />}
-                  <span>{card.trend}</span>
                 </div>
               </div>
               
