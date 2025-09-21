@@ -160,11 +160,14 @@ class TimetableService {
           facultyId: faculty.id,
           facultyName: faculty.name,
           class: className,
+          department: course.department,
           room: availableRoom,
           day,
           timeSlot: timeSlot.id,
           startTime: timeSlot.startTime,
-          endTime: timeSlot.endTime
+          endTime: timeSlot.endTime,
+          type: 'lecture',
+          durationMinutes: 60
         };
 
         entries.push(entry);
