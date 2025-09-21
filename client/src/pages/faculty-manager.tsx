@@ -35,8 +35,10 @@ import {
   Mail,
   Phone,
   BookOpen,
-  Building2
+  Building2,
+  Download
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { useToast } from '@/hooks/use-toast';
 import { DepartmentManager } from '@/components/department/DepartmentManager';
 import { generateClassesForDepartment, departmentIconsAndColors, defaultSubjects, getIconFromKey, getSafeGradient, getDepartmentColorDetails } from '@/utils/departments';
@@ -281,6 +283,72 @@ const FacultyManager: React.FC = () => {
     f.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const handleExportToExcel = () => {
+    if (filteredFaculty.length === 0) {
+      toast({
+        title: "No Data",
+        description: "No faculty members to export.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const selectedDept = departments.find(d => d.id === selectedDepartment);
+      
+      // Prepare data for Excel
+      const exportData = filteredFaculty.map((faculty, index) => ({
+        'S.No.': index + 1,
+        'Name': faculty.name,
+        'Email': faculty.email,
+        'Phone Number': faculty.phoneNumber || '',
+        'Department': selectedDept?.name || 'Unknown',
+        'Subjects': faculty.subjects.join(', '),
+        'Classes': faculty.classes.join(', '),
+        'Created At': faculty.createdAt ? new Date(faculty.createdAt).toLocaleDateString() : ''
+      }));
+
+      // Create workbook
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(exportData);
+      
+      // Set column widths
+      const colWidths = [
+        { wch: 8 },   // S.No.
+        { wch: 20 },  // Name
+        { wch: 25 },  // Email
+        { wch: 15 },  // Phone Number
+        { wch: 20 },  // Department
+        { wch: 30 },  // Subjects
+        { wch: 25 },  // Classes
+        { wch: 12 }   // Created At
+      ];
+      ws['!cols'] = colWidths;
+
+      // Add worksheet to workbook
+      XLSX.utils.book_append_sheet(wb, ws, "Faculty");
+
+      // Generate filename
+      const timestamp = new Date().toISOString().split('T')[0];
+      const filename = `${selectedDept?.name || 'Faculty'}_Faculty_${timestamp}.xlsx`;
+
+      // Save file
+      XLSX.writeFile(wb, filename);
+
+      toast({
+        title: "Export Successful",
+        description: `Faculty data exported to ${filename}`,
+      });
+    } catch (error) {
+      console.error('Error exporting to Excel:', error);
+      toast({
+        title: "Export Failed",
+        description: "Failed to export faculty data. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Department Selection View
   if (!selectedDepartment) {
     return (
@@ -406,10 +474,22 @@ const FacultyManager: React.FC = () => {
             </div>
           </div>
           
-          <Button onClick={handleAddFaculty} data-testid="button-add-faculty">
-            <Plus className="h-4 w-4 mr-2" />
-            Add Faculty
-          </Button>
+          <div className="flex space-x-2">
+            {filteredFaculty.length > 0 && (
+              <Button 
+                variant="outline" 
+                onClick={handleExportToExcel} 
+                data-testid="button-export-faculty"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Export Excel
+              </Button>
+            )}
+            <Button onClick={handleAddFaculty} data-testid="button-add-faculty">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Faculty
+            </Button>
+          </div>
         </div>
 
         {/* Search */}

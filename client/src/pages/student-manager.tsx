@@ -32,8 +32,10 @@ import {
   Edit,
   Trash2,
   Users,
-  Building2
+  Building2,
+  Download
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { useToast } from '@/hooks/use-toast';
 import { DepartmentManager } from '@/components/department/DepartmentManager';
 import { generateClassesForDepartment, departmentIconsAndColors, getDepartmentColorDetails, getIconFromKey, getSafeGradient } from '@/utils/departments';
@@ -297,6 +299,78 @@ const StudentManager: React.FC = () => {
     student.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const handleExportToExcel = () => {
+    if (filteredStudents.length === 0) {
+      toast({
+        title: "No Data",
+        description: "No students to export.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const selectedDept = departments.find(d => d.id === selectedDepartment);
+      
+      // Prepare data for Excel
+      const exportData = filteredStudents.map((student, index) => ({
+        'S.No.': index + 1,
+        'Name': student.name,
+        'Roll Number': student.rollNumber,
+        'Email': student.email,
+        'Year': student.year,
+        'Semester': student.semester,
+        'Department': selectedDept?.name || 'Unknown',
+        'Class': selectedClass,
+        'Phone Number': student.phoneNumber || '',
+        'Parent Contact': student.parentContact || '',
+        'Created At': student.createdAt ? new Date(student.createdAt).toLocaleDateString() : ''
+      }));
+
+      // Create workbook
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(exportData);
+      
+      // Set column widths
+      const colWidths = [
+        { wch: 8 },   // S.No.
+        { wch: 20 },  // Name
+        { wch: 15 },  // Roll Number
+        { wch: 25 },  // Email
+        { wch: 8 },   // Year
+        { wch: 10 },  // Semester
+        { wch: 20 },  // Department
+        { wch: 20 },  // Class
+        { wch: 15 },  // Phone Number
+        { wch: 15 },  // Parent Contact
+        { wch: 12 }   // Created At
+      ];
+      ws['!cols'] = colWidths;
+
+      // Add worksheet to workbook
+      XLSX.utils.book_append_sheet(wb, ws, "Students");
+
+      // Generate filename
+      const timestamp = new Date().toISOString().split('T')[0];
+      const filename = `${selectedClass}_Students_${timestamp}.xlsx`;
+
+      // Save file
+      XLSX.writeFile(wb, filename);
+
+      toast({
+        title: "Export Successful",
+        description: `Student data exported to ${filename}`,
+      });
+    } catch (error) {
+      console.error('Error exporting to Excel:', error);
+      toast({
+        title: "Export Failed",
+        description: "Failed to export student data. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (!selectedDepartment) {
     // Department Selection View
     return (
@@ -442,10 +516,22 @@ const StudentManager: React.FC = () => {
             </div>
           </div>
           
-          <Button onClick={handleAddStudent} data-testid="button-add-student">
-            <Plus className="h-4 w-4 mr-2" />
-            Add Student
-          </Button>
+          <div className="flex space-x-2">
+            {filteredStudents.length > 0 && (
+              <Button 
+                variant="outline" 
+                onClick={handleExportToExcel} 
+                data-testid="button-export-students"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Export Excel
+              </Button>
+            )}
+            <Button onClick={handleAddStudent} data-testid="button-add-student">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Student
+            </Button>
+          </div>
         </div>
 
         {/* Search */}
