@@ -64,6 +64,13 @@
   
   /* Spacing */
   --spacing: 0.25rem;
+  
+  /* Manager UI tokens */
+  --manager-header-bg: var(--card);
+  --manager-header-fg: var(--card-foreground);
+  --manager-accent: var(--accent);
+  --manager-chip-bg: var(--secondary);
+  --manager-chip-fg: var(--secondary-foreground);
 }
 
 /* Dark theme - controlled via .dark class from ThemeProvider */
@@ -101,6 +108,13 @@
   --sidebar-accent-foreground: hsl(210 78% 46%);
   --sidebar-border: hsl(210 10% 18%);
   --sidebar-ring: hsl(210 78% 46%);
+  
+  /* Manager UI tokens for dark mode */
+  --manager-header-bg: var(--card);
+  --manager-header-fg: var(--card-foreground);
+  --manager-accent: var(--accent);
+  --manager-chip-bg: var(--secondary);
+  --manager-chip-fg: var(--secondary-foreground);
 }
 
 @layer base {
@@ -184,6 +198,39 @@
 
   .dark .bg-gradient-secondary {
     background: linear-gradient(135deg, rgba(17, 24, 39, 0.95), rgba(31, 41, 55, 0.9));
+  }
+
+  /* Department-specific color tokens */
+  [data-dept="cse"] {
+    --dept-color: 210 78% 46%;
+  }
+
+  [data-dept="ece"] {
+    --dept-color: 142 71% 45%;
+  }
+
+  [data-dept="mech"] {
+    --dept-color: 25 95% 53%;
+  }
+
+  /* Department utility classes */
+  .dept-icon {
+    color: hsl(var(--dept-color));
+  }
+
+  .dept-chip {
+    background: hsl(var(--dept-color) / 0.12);
+    border-color: hsl(var(--dept-color) / 0.2);
+    color: hsl(var(--dept-color));
+  }
+
+  .dept-card-accent {
+    border-left: 4px solid hsl(var(--dept-color));
+  }
+
+  .dept-badge {
+    background: hsl(var(--dept-color) / 0.1);
+    color: hsl(var(--dept-color));
   }
 }
 
