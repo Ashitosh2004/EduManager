@@ -10,6 +10,16 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -47,6 +57,9 @@ export const DepartmentManager: React.FC = () => {
     colorIndex: 0,
     customGradient: ''
   });
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [departmentToDelete, setDepartmentToDelete] = useState<Department | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   useEffect(() => {
     if (institute) {
@@ -193,14 +206,23 @@ export const DepartmentManager: React.FC = () => {
     }
   };
 
-  const handleDeleteDepartment = async (departmentId: string) => {
+  const confirmDeleteDepartment = (department: Department) => {
+    setDepartmentToDelete(department);
+    setShowDeleteDialog(true);
+  };
+
+  const handleDeleteDepartment = async () => {
+    if (!departmentToDelete) return;
+
     try {
-      setLoading(true);
-      await firestoreService.deleteDepartment(departmentId);
+      setDeleteLoading(true);
+      await firestoreService.deleteDepartment(departmentToDelete.id);
       toast({
         title: "Success",
-        description: "Department deleted successfully.",
+        description: `Department "${departmentToDelete.name}" deleted successfully.`,
       });
+      setShowDeleteDialog(false);
+      setDepartmentToDelete(null);
       loadDepartments();
     } catch (error) {
       console.error('Error deleting department:', error);
@@ -210,7 +232,7 @@ export const DepartmentManager: React.FC = () => {
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      setDeleteLoading(false);
     }
   };
 
@@ -343,7 +365,7 @@ export const DepartmentManager: React.FC = () => {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleDeleteDepartment(department.id)}
+                        onClick={() => confirmDeleteDepartment(department)}
                         className="text-destructive hover:text-destructive"
                         data-testid={`button-delete-${department.id}`}
                       >
@@ -498,6 +520,56 @@ export const DepartmentManager: React.FC = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent data-testid="dialog-delete-department">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Department</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <strong>{departmentToDelete?.name}</strong>?
+              
+              This action will permanently remove the department from the system. This action cannot be undone.
+              
+              {/* Warning about dependent data */}
+              <div className="mt-3 p-3 bg-destructive/10 rounded-lg border border-destructive/20">
+                <p className="text-sm text-destructive font-medium">
+                  ⚠️ Warning: Deleting this department may affect:
+                </p>
+                <ul className="text-sm text-destructive/80 mt-1 ml-4 list-disc">
+                  <li>Students currently enrolled in this department</li>
+                  <li>Faculty members assigned to this department</li>
+                  <li>Courses offered by this department</li>
+                  <li>Generated timetables for this department</li>
+                </ul>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel 
+              disabled={deleteLoading} 
+              data-testid="button-cancel-delete-department"
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteDepartment}
+              disabled={deleteLoading}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="button-confirm-delete-department"
+            >
+              {deleteLoading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
+                  Deleting...
+                </>
+              ) : (
+                'Delete Department'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
