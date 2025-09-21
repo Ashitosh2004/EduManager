@@ -677,6 +677,10 @@ const StudentManager: React.FC = () => {
         open={showDepartmentManager} 
         onOpenChange={(open) => {
           setShowDepartmentManager(open);
+          if (!open) {
+            // Refresh departments when modal is closed
+            loadDepartments();
+          }
         }}
       >
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
@@ -689,11 +693,7 @@ const StudentManager: React.FC = () => {
           <DepartmentManager />
           <div className="flex justify-end pt-4">
             <Button 
-              onClick={() => {
-                setShowDepartmentManager(false);
-                // Force reload departments to reflect any changes
-                loadDepartments();
-              }}
+              onClick={() => setShowDepartmentManager(false)}
               data-testid="button-close-department-manager"
             >
               Done

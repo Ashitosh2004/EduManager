@@ -39,12 +39,11 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { DepartmentManager } from '@/components/department/DepartmentManager';
-import { generateClassesForDepartment, departmentIconsAndColors, defaultSubjects } from '@/utils/departments';
+import { generateClassesForDepartment, departmentIconsAndColors, defaultSubjects, getIconFromKey, getSafeGradient, getDepartmentColorDetails } from '@/utils/departments';
 
 // Helper function to get icon component from department
 const getDepartmentIcon = (department: Department) => {
-  const iconData = departmentIconsAndColors.find(item => item.color === department.colorClass);
-  return iconData ? iconData.icon : Building2;
+  return getIconFromKey(department.iconName);
 };
 
 // Helper function to get color class
@@ -306,33 +305,40 @@ const FacultyManager: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {departments.map((dept) => {
             const Icon = getDepartmentIcon(dept);
-            const colorClass = getDepartmentColor(dept);
+            const colorDetails = getDepartmentColorDetails(dept.colorClass);
             const count = departmentStats[dept.id] || 0;
             
             return (
               <Card 
                 key={dept.id} 
-                className="cursor-pointer dept-card-gradient"
+                className="cursor-pointer transition-all duration-300 hover:shadow-lg hover:scale-[1.02] border-0 overflow-hidden"
                 onClick={() => handleDepartmentSelect(dept.id)}
                 data-testid={`card-department-${dept.id}`}
+                style={{
+                  background: getSafeGradient(dept.customGradient, colorDetails.gradient),
+                  backdropFilter: 'blur(16px)',
+                  WebkitBackdropFilter: 'blur(16px)',
+                  border: `1px solid rgba(59, 130, 246, 0.2)`
+                }}
+                onMouseEnter={(e) => {
+                  const safeGradient = getSafeGradient(dept.customGradient, colorDetails.gradient);
+                  if (safeGradient === colorDetails.gradient) {
+                    e.currentTarget.style.background = colorDetails.hoverGradient;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = getSafeGradient(dept.customGradient, colorDetails.gradient);
+                }}
               >
-                <CardContent className="p-6">
+                <CardContent className="p-6 relative">
                   <div className="flex items-center justify-between mb-4">
-                    <div className={`w-12 h-12 ${colorClass}/10 rounded-lg flex items-center justify-center`}>
-                      <Icon className={`h-6 w-6 ${colorClass.replace('bg-', 'text-')}`} />
+                    <div className="w-12 h-12 bg-white/10 dark:bg-black/10 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                      <Icon className="h-6 w-6 text-white dark:text-white" />
                     </div>
-                    <Badge variant="secondary" className="text-xs">
-                      {count} faculty
-                    </Badge>
+                    <span className="text-2xl font-bold text-foreground">{count}</span>
                   </div>
-                  
-                  <h3 className="text-lg font-semibold text-foreground mb-2">
-                    {dept.name}
-                  </h3>
-                  
-                  <p className="text-sm text-muted-foreground">
-                    Click to manage faculty members in this department
-                  </p>
+                  <h3 className="font-semibold text-foreground mb-1">{dept.name}</h3>
+                  <p className="text-sm text-muted-foreground">{dept.shortName || dept.name} Department</p>
                 </CardContent>
               </Card>
             );
