@@ -17,6 +17,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { firestoreService } from '@/services/firestoreService';
@@ -66,6 +76,9 @@ const CourseManager: React.FC = () => {
   const [showDepartmentManager, setShowDepartmentManager] = useState(false);
   const [editingCourse, setEditingCourse] = useState<Course | null>(null);
   const [departmentStats, setDepartmentStats] = useState<Record<string, number>>({});
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [courseToDelete, setCourseToDelete] = useState<Course | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     code: '',
@@ -285,14 +298,23 @@ const CourseManager: React.FC = () => {
     }
   };
 
-  const handleDeleteCourse = async (courseId: string) => {
+  const confirmDeleteCourse = (course: Course) => {
+    setCourseToDelete(course);
+    setShowDeleteDialog(true);
+  };
+
+  const handleDeleteCourse = async () => {
+    if (!courseToDelete) return;
+
     try {
-      setLoading(true);
-      await firestoreService.deleteCourse(courseId);
+      setDeleteLoading(true);
+      await firestoreService.deleteCourse(courseToDelete.id);
       toast({
         title: "Success",
-        description: "Course deleted successfully.",
+        description: `Course "${courseToDelete.name}" deleted successfully.`,
       });
+      setShowDeleteDialog(false);
+      setCourseToDelete(null);
       loadCourses();
       loadDepartmentStats();
     } catch (error) {
@@ -303,7 +325,7 @@ const CourseManager: React.FC = () => {
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      setDeleteLoading(false);
     }
   };
 
@@ -604,7 +626,7 @@ const CourseManager: React.FC = () => {
                     variant="outline" 
                     size="sm" 
                     className="flex-1 text-destructive hover:bg-destructive hover:text-destructive-foreground"
-                    onClick={() => handleDeleteCourse(course.id)}
+                    onClick={() => confirmDeleteCourse(course)}
                     data-testid={`button-delete-course-${course.id}`}
                   >
                     <Trash2 className="h-3 w-3 mr-1" />
@@ -758,6 +780,57 @@ const CourseManager: React.FC = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={(open) => { setShowDeleteDialog(open); if (!open) setCourseToDelete(null); }}>
+        <AlertDialogContent data-testid="dialog-delete-course">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Course</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <strong>{courseToDelete?.name}</strong> ({courseToDelete?.code})?
+              
+              This action will permanently remove the course from the system. This action cannot be undone.
+              
+              {/* Warning about dependent data */}
+              <div className="mt-3 p-3 bg-destructive/10 rounded-lg border border-destructive/20">
+                <p className="text-sm text-destructive font-medium">
+                  ⚠️ Warning: Deleting this course may affect:
+                </p>
+                <ul className="text-sm text-destructive/80 mt-1 ml-4 list-disc">
+                  <li>Student enrollments and academic records</li>
+                  <li>Assignment submissions and grades</li>
+                  <li>Generated timetables and schedules</li>
+                  <li>Faculty teaching assignments</li>
+                  <li>Academic transcripts and reports</li>
+                </ul>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel 
+              disabled={deleteLoading} 
+              data-testid="button-cancel-delete-course"
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteCourse}
+              disabled={deleteLoading}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="button-confirm-delete-course"
+            >
+              {deleteLoading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
+                  Deleting...
+                </>
+              ) : (
+                'Delete Course'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
