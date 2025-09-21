@@ -17,6 +17,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { firestoreService } from '@/services/firestoreService';
@@ -67,6 +77,9 @@ const FacultyManager: React.FC = () => {
   const [showDepartmentManager, setShowDepartmentManager] = useState(false);
   const [editingFaculty, setEditingFaculty] = useState<Faculty | null>(null);
   const [departmentStats, setDepartmentStats] = useState<Record<string, number>>({});
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [facultyToDelete, setFacultyToDelete] = useState<Faculty | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -256,14 +269,23 @@ const FacultyManager: React.FC = () => {
     }
   };
 
-  const handleDeleteFaculty = async (facultyId: string) => {
+  const confirmDeleteFaculty = (facultyMember: Faculty) => {
+    setFacultyToDelete(facultyMember);
+    setShowDeleteDialog(true);
+  };
+
+  const handleDeleteFaculty = async () => {
+    if (!facultyToDelete) return;
+
     try {
-      setLoading(true);
-      await firestoreService.deleteFaculty(facultyId);
+      setDeleteLoading(true);
+      await firestoreService.deleteFaculty(facultyToDelete.id);
       toast({
         title: "Success",
-        description: "Faculty member deleted successfully.",
+        description: `Faculty member "${facultyToDelete.name}" deleted successfully.`,
       });
+      setShowDeleteDialog(false);
+      setFacultyToDelete(null);
       loadFaculty();
       loadDepartmentStats();
     } catch (error) {
@@ -274,7 +296,7 @@ const FacultyManager: React.FC = () => {
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      setDeleteLoading(false);
     }
   };
 
@@ -576,7 +598,7 @@ const FacultyManager: React.FC = () => {
                     variant="outline" 
                     size="sm" 
                     className="flex-1 text-destructive hover:bg-destructive hover:text-destructive-foreground"
-                    onClick={() => handleDeleteFaculty(facultyMember.id)}
+                    onClick={() => confirmDeleteFaculty(facultyMember)}
                     data-testid={`button-delete-faculty-${facultyMember.id}`}
                   >
                     <Trash2 className="h-3 w-3 mr-1" />
@@ -716,6 +738,56 @@ const FacultyManager: React.FC = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent data-testid="dialog-delete-faculty">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Faculty Member</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <strong>{facultyToDelete?.name}</strong>?
+              
+              This action will permanently remove the faculty member from the system. This action cannot be undone.
+              
+              {/* Warning about dependent data */}
+              <div className="mt-3 p-3 bg-destructive/10 rounded-lg border border-destructive/20">
+                <p className="text-sm text-destructive font-medium">
+                  ⚠️ Warning: Deleting this faculty member may affect:
+                </p>
+                <ul className="text-sm text-destructive/80 mt-1 ml-4 list-disc">
+                  <li>Course assignments and teaching schedules</li>
+                  <li>Generated timetables for assigned classes</li>
+                  <li>Student-faculty relationships</li>
+                  <li>Any pending assignments or grading</li>
+                </ul>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel 
+              disabled={deleteLoading} 
+              data-testid="button-cancel-delete-faculty"
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteFaculty}
+              disabled={deleteLoading}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="button-confirm-delete-faculty"
+            >
+              {deleteLoading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
+                  Deleting...
+                </>
+              ) : (
+                'Delete Faculty'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
