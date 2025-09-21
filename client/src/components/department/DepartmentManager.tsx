@@ -20,7 +20,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { firestoreService } from '@/services/firestoreService';
 import { Department } from '@/types';
-import { departmentIconsAndColors } from '@/utils/departments';
+import { departmentIconsAndColors, departmentColors, getDepartmentColorDetails, DepartmentColor } from '@/utils/departments';
 import { 
   Plus, 
   Edit, 
@@ -44,7 +44,8 @@ export const DepartmentManager: React.FC = () => {
     name: '',
     shortName: '',
     iconIndex: 0,
-    colorIndex: 0
+    colorIndex: 0,
+    customGradient: ''
   });
 
   useEffect(() => {
@@ -77,7 +78,8 @@ export const DepartmentManager: React.FC = () => {
       name: '',
       shortName: '',
       iconIndex: 0,
-      colorIndex: 0
+      colorIndex: 0,
+      customGradient: ''
     });
     setEditingDepartment(null);
   };
@@ -102,7 +104,8 @@ export const DepartmentManager: React.FC = () => {
       name: department.name,
       shortName: department.shortName || '',
       iconIndex: iconIndex >= 0 ? iconIndex : 0,
-      colorIndex: colorIndex >= 0 ? colorIndex : 0
+      colorIndex: colorIndex >= 0 ? colorIndex : 0,
+      customGradient: department.customGradient || ''
     });
     setEditingDepartment(department);
     setShowAddModal(true);
@@ -139,12 +142,13 @@ export const DepartmentManager: React.FC = () => {
       }
 
       const selectedIcon = departmentIconsAndColors[formData.iconIndex];
-      const selectedColor = departmentIconsAndColors[formData.colorIndex];
+      const selectedColor = departmentColors[formData.colorIndex];
       const departmentData = {
         name: formData.name.trim(),
         shortName: formData.shortName.trim() || undefined,
         iconName: selectedIcon.icon.name || 'Computer',
-        colorClass: selectedColor.color,
+        colorClass: selectedColor.class,
+        customGradient: formData.customGradient || selectedColor.gradient,
         instituteId: institute.id,
         createdAt: editingDepartment ? editingDepartment.createdAt : new Date()
       };
@@ -275,16 +279,23 @@ export const DepartmentManager: React.FC = () => {
               item => item.color === department.colorClass
             ) || departmentIconsAndColors[0];
             const Icon = iconColorItem.icon;
+            const colorDetails = getDepartmentColorDetails(department.colorClass);
             
             return (
               <Card 
                 key={department.id} 
-                className="hover:shadow-md transition-shadow"
+                className="hover:shadow-md transition-all duration-300 overflow-hidden border-0"
+                style={{
+                  background: department.customGradient || colorDetails.gradient,
+                  backdropFilter: 'blur(16px)',
+                  WebkitBackdropFilter: 'blur(16px)',
+                  border: `1px solid ${department.colorClass.replace('bg-', 'rgb(')}20)`
+                }}
                 data-testid={`card-department-${department.id}`}
               >
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between mb-4">
-                    <div className={`w-12 h-12 ${department.colorClass} rounded-lg flex items-center justify-center`}>
+                    <div className={`w-12 h-12 ${department.colorClass} rounded-lg flex items-center justify-center shadow-lg`}>
                       <Icon className="h-6 w-6 text-white" />
                     </div>
                     <Badge variant="secondary" className="text-xs">
@@ -417,12 +428,15 @@ export const DepartmentManager: React.FC = () => {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {departmentIconsAndColors.map((item, index) => {
+                    {departmentColors.map((item, index) => {
                       return (
                         <SelectItem key={index} value={index.toString()}>
                           <div className="flex items-center space-x-2">
-                            <div className={`w-6 h-6 ${item.color} rounded-md shadow-sm border border-gray-200 dark:border-gray-700`}></div>
-                            <span className="capitalize">{item.color.replace('bg-', '').replace('-500', '').replace('-', ' ')}</span>
+                            <div 
+                              className="w-6 h-6 rounded-md shadow-sm border border-gray-200 dark:border-gray-700"
+                              style={{ background: item.gradient }}
+                            ></div>
+                            <span>{item.name}</span>
                           </div>
                         </SelectItem>
                       );
@@ -430,6 +444,22 @@ export const DepartmentManager: React.FC = () => {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+            
+            
+            <div>
+              <label className="text-sm font-medium text-foreground mb-2 block">
+                Custom Gradient (Optional)
+              </label>
+              <Input
+                value={formData.customGradient}
+                onChange={(e) => setFormData({ ...formData, customGradient: e.target.value })}
+                placeholder="linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(147, 197, 253, 0.08))"
+                data-testid="input-custom-gradient"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Leave empty to use the selected color's default gradient
+              </p>
             </div>
             
             <div className="flex justify-end space-x-2 pt-4">

@@ -209,6 +209,7 @@ export interface Department {
   shortName?: string;
   iconName: string;
   colorClass: string;
+  customGradient?: string;
   instituteId: string;
   createdAt: Date;
 }

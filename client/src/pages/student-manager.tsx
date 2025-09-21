@@ -36,7 +36,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { DepartmentManager } from '@/components/department/DepartmentManager';
-import { generateClassesForDepartment, departmentIconsAndColors } from '@/utils/departments';
+import { generateClassesForDepartment, departmentIconsAndColors, getDepartmentColorDetails } from '@/utils/departments';
 
 // Helper function to get icon component from department
 const getDepartmentIcon = (department: Department) => {
@@ -332,15 +332,24 @@ const StudentManager: React.FC = () => {
             const colorClass = getDepartmentColor(dept);
             const studentCount = departmentStats[dept.id] || 0;
             
+            const colorDetails = getDepartmentColorDetails(dept.colorClass);
+            
             return (
               <Card 
                 key={dept.id}
-                className="cursor-pointer dept-card-gradient"
+                className="cursor-pointer transition-all duration-300 hover:shadow-lg hover:scale-[1.02] border-0 overflow-hidden"
+                style={{
+                  background: dept.customGradient || colorDetails.gradient,
+                  backdropFilter: 'blur(16px)',
+                  WebkitBackdropFilter: 'blur(16px)',
+                  border: `1px solid rgba(59, 130, 246, 0.2)`
+                }}
                 onClick={() => handleDepartmentSelect(dept.id)}
+                data-testid={`dept-card-${dept.id}`}
               >
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between mb-4">
-                    <div className={`w-12 h-12 ${colorClass} rounded-xl flex items-center justify-center`}>
+                    <div className={`w-12 h-12 ${dept.colorClass} rounded-xl flex items-center justify-center shadow-lg`}>
                       <Icon className="h-6 w-6 text-white" />
                     </div>
                     <span className="text-2xl font-bold text-foreground">{studentCount}</span>
@@ -390,8 +399,8 @@ const StudentManager: React.FC = () => {
             >
               <CardContent className="p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <div className={`w-10 h-10 ${selectedDept ? getDepartmentColor(selectedDept) : 'bg-gray-500'}/10 rounded-lg flex items-center justify-center`}>
-                    <Icon className={`h-5 w-5 ${selectedDept ? getDepartmentColor(selectedDept).replace('bg-', 'text-') : 'text-gray-500'}`} />
+                  <div className={`w-10 h-10 ${selectedDept ? selectedDept.colorClass : 'bg-gray-500'} rounded-lg flex items-center justify-center shadow-md`}>
+                    <Icon className="h-5 w-5 text-white" />
                   </div>
                   <Badge variant="secondary">Active</Badge>
                 </div>
