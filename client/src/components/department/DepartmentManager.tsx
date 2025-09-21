@@ -20,7 +20,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { firestoreService } from '@/services/firestoreService';
 import { Department } from '@/types';
-import { departmentIconsAndColors, departmentColors, getDepartmentColorDetails, DepartmentColor } from '@/utils/departments';
+import { departmentIconsAndColors, departmentColors, getDepartmentColorDetails, DepartmentColor, getIconFromKey } from '@/utils/departments';
 import { 
   Plus, 
   Edit, 
@@ -90,21 +90,21 @@ export const DepartmentManager: React.FC = () => {
   };
 
   const handleEditDepartment = (department: Department) => {
-    // Find the icon index by matching the icon name or fallback to color match
+    // Find the icon index by matching the icon key
     const iconIndex = departmentIconsAndColors.findIndex(
-      item => item.icon.name === department.iconName || item.color === department.colorClass
+      item => item.key === department.iconName
     );
     
-    // Find the color index separately by matching the color class
-    const colorIndex = departmentIconsAndColors.findIndex(
-      item => item.color === department.colorClass
+    // Find the color index by matching the color class in departmentColors
+    const colorIndex = departmentColors.findIndex(
+      item => item.class === department.colorClass
     );
     
     setFormData({
       name: department.name,
       shortName: department.shortName || '',
-      iconIndex: iconIndex >= 0 ? iconIndex : 0,
-      colorIndex: colorIndex >= 0 ? colorIndex : 0,
+      iconIndex: Math.max(0, iconIndex),
+      colorIndex: Math.max(0, colorIndex),
       customGradient: department.customGradient || ''
     });
     setEditingDepartment(department);
@@ -146,7 +146,7 @@ export const DepartmentManager: React.FC = () => {
       const departmentData = {
         name: formData.name.trim(),
         shortName: formData.shortName.trim() || undefined,
-        iconName: selectedIcon.icon.name || 'Computer',
+        iconName: selectedIcon.key,
         colorClass: selectedColor.class,
         customGradient: formData.customGradient || selectedColor.gradient,
         instituteId: institute.id,
@@ -275,10 +275,7 @@ export const DepartmentManager: React.FC = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredDepartments.map((department) => {
-            const iconColorItem = departmentIconsAndColors.find(
-              item => item.color === department.colorClass
-            ) || departmentIconsAndColors[0];
-            const Icon = iconColorItem.icon;
+            const Icon = getIconFromKey(department.iconName);
             const colorDetails = getDepartmentColorDetails(department.colorClass);
             
             return (
@@ -289,7 +286,15 @@ export const DepartmentManager: React.FC = () => {
                   background: department.customGradient || colorDetails.gradient,
                   backdropFilter: 'blur(16px)',
                   WebkitBackdropFilter: 'blur(16px)',
-                  border: `1px solid ${department.colorClass.replace('bg-', 'rgb(')}20)`
+                  border: `1px solid rgba(59, 130, 246, 0.2)`
+                }}
+                onMouseEnter={(e) => {
+                  if (!department.customGradient) {
+                    e.currentTarget.style.background = colorDetails.hoverGradient;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = department.customGradient || colorDetails.gradient;
                 }}
                 data-testid={`card-department-${department.id}`}
               >

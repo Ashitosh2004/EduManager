@@ -103,24 +103,46 @@ export const departmentColors: DepartmentColor[] = [
   }
 ];
 
+// Icon mapping with stable keys
+export const iconMapping = {
+  Computer,
+  Zap,
+  Cog,
+  BookOpen,
+  Monitor,
+  Wrench,
+  Factory,
+  Calculator,
+  Beaker,
+  Briefcase,
+  Palette
+};
+
+export type IconKey = keyof typeof iconMapping;
+
 // Default icons and colors for departments
 export const departmentIconsAndColors = [
-  { icon: Computer, color: 'bg-blue-500' },
-  { icon: Zap, color: 'bg-green-500' },
-  { icon: Cog, color: 'bg-orange-500' },
-  { icon: BookOpen, color: 'bg-purple-500' },
-  { icon: Monitor, color: 'bg-red-500' },
-  { icon: Wrench, color: 'bg-yellow-500' },
-  { icon: Factory, color: 'bg-gray-500' },
-  { icon: Calculator, color: 'bg-indigo-500' },
-  { icon: Beaker, color: 'bg-pink-500' },
-  { icon: Briefcase, color: 'bg-teal-500' },
-  { icon: Palette, color: 'bg-violet-500' },
+  { icon: Computer, key: 'Computer' as IconKey, color: 'bg-blue-500' },
+  { icon: Zap, key: 'Zap' as IconKey, color: 'bg-green-500' },
+  { icon: Cog, key: 'Cog' as IconKey, color: 'bg-orange-500' },
+  { icon: BookOpen, key: 'BookOpen' as IconKey, color: 'bg-purple-500' },
+  { icon: Monitor, key: 'Monitor' as IconKey, color: 'bg-red-500' },
+  { icon: Wrench, key: 'Wrench' as IconKey, color: 'bg-yellow-500' },
+  { icon: Factory, key: 'Factory' as IconKey, color: 'bg-gray-500' },
+  { icon: Calculator, key: 'Calculator' as IconKey, color: 'bg-indigo-500' },
+  { icon: Beaker, key: 'Beaker' as IconKey, color: 'bg-pink-500' },
+  { icon: Briefcase, key: 'Briefcase' as IconKey, color: 'bg-teal-500' },
+  { icon: Palette, key: 'Palette' as IconKey, color: 'bg-violet-500' },
 ];
 
 // Helper function to get color details
 export const getDepartmentColorDetails = (colorClass: string): DepartmentColor => {
   return departmentColors.find(color => color.class === colorClass) || departmentColors[0];
+};
+
+// Helper function to get icon component from stable key
+export const getIconFromKey = (iconKey: string): any => {
+  return iconMapping[iconKey as IconKey] || Computer;
 };
 
 // Default departments for new institutes

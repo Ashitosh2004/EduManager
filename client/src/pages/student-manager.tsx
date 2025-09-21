@@ -36,19 +36,11 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { DepartmentManager } from '@/components/department/DepartmentManager';
-import { generateClassesForDepartment, departmentIconsAndColors, getDepartmentColorDetails } from '@/utils/departments';
+import { generateClassesForDepartment, departmentIconsAndColors, getDepartmentColorDetails, getIconFromKey } from '@/utils/departments';
 
 // Helper function to get icon component from department
 const getDepartmentIcon = (department: Department) => {
-  // First try to use the saved iconName
-  if (department.iconName) {
-    const iconData = departmentIconsAndColors.find(item => item.icon.name === department.iconName);
-    if (iconData) return iconData.icon;
-  }
-  
-  // Fallback to finding by colorClass
-  const iconData = departmentIconsAndColors.find(item => item.color === department.colorClass);
-  return iconData ? iconData.icon : Building2;
+  return getIconFromKey(department.iconName);
 };
 
 // Helper function to get color class
@@ -343,6 +335,14 @@ const StudentManager: React.FC = () => {
                   backdropFilter: 'blur(16px)',
                   WebkitBackdropFilter: 'blur(16px)',
                   border: `1px solid rgba(59, 130, 246, 0.2)`
+                }}
+                onMouseEnter={(e) => {
+                  if (!dept.customGradient) {
+                    e.currentTarget.style.background = colorDetails.hoverGradient;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = dept.customGradient || colorDetails.gradient;
                 }}
                 onClick={() => handleDepartmentSelect(dept.id)}
                 data-testid={`dept-card-${dept.id}`}
